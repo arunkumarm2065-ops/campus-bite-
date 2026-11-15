@@ -15,10 +15,35 @@
     @keyframes pop { from { transform: scale(.9); opacity:0 } to { transform: scale(1); opacity:1 } }
     .pulse-dot { animation: pulse 1.6s infinite; }
     @keyframes pulse { 50% { opacity:.45; transform:scale(.85) } }
+    .food-card { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .food-card:hover { transform: translateY(-3px); box-shadow: 0 16px 28px rgba(15,23,42,.08); }
+    .food-card img { transition: transform .3s ease; }
+    .food-card:hover img { transform: scale(1.05); }
+    .add-cart-btn:active, .add-cart-btn.is-added { transform: scale(.97); }
+    .cart-badge-pop { animation: cartBadgePop .35s ease; }
+    @keyframes cartBadgePop { 0%{transform:scale(.75);} 40%{transform:scale(1.25);} 100%{transform:scale(1);} }
+    .cart-drawer-panel { animation: drawerIn .28s ease; }
+    @keyframes drawerIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+    .modal-shell { animation: modalIn .2s ease; }
+    @keyframes modalIn { from { transform: translateY(10px) scale(.96); opacity:0; } to { transform: translateY(0) scale(1); opacity:1; } }
+    .token-pass { animation: tokenPass .5s ease; }
+    @keyframes tokenPass { 0%{transform:scale(.96);opacity:0;} 55%{transform:scale(1.02);} 100%{transform:scale(1);opacity:1;} }
+    .notification-panel { animation: notifIn .22s ease; }
+    @keyframes notifIn { from { transform: translateY(-10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+    .badge-pulse { animation: badgePulse 1.8s infinite; }
+    @keyframes badgePulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(249,115,22,.4);} 50%{transform:scale(1.05);box-shadow:0 0 0 10px rgba(249,115,22,0);} }
+    .status-badge-transition { transition: all .2s ease; }
+    .order-card-enter { animation: orderCardIn .32s ease; }
+    @keyframes orderCardIn { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+    .cancelled-card { background: linear-gradient(135deg,#fff5f5 0%,#f8fafc 100%); border-color: #fecaca; }
+    .cancelled-dot { animation: cancelledPulse .9s ease-in-out infinite alternate; }
+    @keyframes cancelledPulse { from { opacity:.5; transform:scale(.9);} to { opacity:1; transform:scale(1.15);} }
+    .order-spinner { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(255,255,255,.6); border-top-color:#fff; border-radius:999px; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .qr { background: repeating-linear-gradient(90deg,#111 0 4px,#fff 4px 8px), repeating-linear-gradient(0deg,transparent 0 5px,#111 5px 8px); background-blend-mode:multiply; }
     :focus-visible{outline:3px solid #f97316;outline-offset:2px}
     main .text-slate-400,#cartDrawer .text-slate-400{color:#64748b}
-    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}; html{scroll-behavior:auto} }
   </style>
 
   <!-- Firebase (no Storage required) -->
@@ -47,7 +72,7 @@ header>div>div:last-child{min-width:0}
   header>div{padding-top:.65rem;padding-bottom:.65rem}
   header>div>div:first-child{flex:1;min-width:0}
   header>div>div:last-child{gap:.35rem}
-  #studentTab,#vendorTab,#foodMenuTab,#adminTab,#reportTab,#logoutBtn{padding:.55rem .7rem;font-size:.75rem}
+  #studentTab,#myOrdersTab,#vendorTab,#foodMenuTab,#adminTab,#reportTab,#logoutBtn{padding:.55rem .7rem;font-size:.75rem}
   #cartBtn{width:2.6rem;height:2.6rem;flex:0 0 auto}
   main{padding-left:.8rem!important;padding-right:.8rem!important}
   #studentView>section:first-child{padding:1.25rem}
@@ -105,6 +130,8 @@ header>div>div:last-child{min-width:0}
         <label class="text-sm font-bold">Password</label>
         <input id="loginPass" type="password" class="w-full mt-1 border rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-200" placeholder="Enter password">
         <button id="loginBtn" type="button" class="w-full mt-4 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black">Continue as Student Login</button>
+        <button id="passwordResetBtn" type="button" class="w-full mt-3 text-sm font-bold text-orange-600 hover:text-orange-700">Forgot password?</button>
+        <p id="passwordResetStatus" class="hidden mt-2 text-center text-sm font-semibold" role="status" aria-live="polite"></p>
         <p id="loginError" class="hidden mt-3 text-center text-sm text-red-600 font-semibold"></p>
       </div>
       <div class="mt-5 p-3 rounded-xl bg-slate-50 text-xs text-slate-500 text-center">
@@ -129,7 +156,8 @@ header>div>div:last-child{min-width:0}
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button id="studentTab" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm">Student</button>
+        <button id="studentTab" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm">🍽️ Order Food</button>
+        <button id="myOrdersTab" class="hidden px-3 py-2 rounded-xl text-slate-500 font-bold text-sm">📦 My Orders</button>
         <button id="vendorTab" class="px-3 py-2 rounded-xl text-slate-500 font-bold text-sm">Kitchen</button>
         <button id="foodMenuTab" class="px-3 py-2 rounded-xl text-slate-500 font-bold text-sm">Food Menu</button>
         <button id="adminTab" class="px-3 py-2 rounded-xl text-slate-500 font-bold text-sm">Shop Admin</button>
@@ -190,15 +218,31 @@ header>div>div:last-child{min-width:0}
     </div>
     <div id="menu" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-    <section class="mt-8">
-      <div class="flex items-end justify-between mb-3">
-        <div><h3 class="text-xl font-black">My Purchases & Reviews</h3><p class="text-sm text-slate-500">Review food you have purchased after it is ready.</p></div>
-        <span class="text-xs font-bold text-slate-500">⭐ Your feedback</span>
-      </div>
-      <div id="myPurchases" class="space-y-3"></div>
-      <div id="noPurchases" class="bg-white border rounded-2xl p-6 text-center text-slate-400">No purchases yet. Your completed orders will appear here.</div>
-    </section>
   </main>
+
+  <main id="studentOrdersView" class="hidden max-w-6xl mx-auto px-4 py-6">
+    <section class="mb-5">
+      <h2 class="text-3xl font-black">My Orders</h2>
+      <p class="text-slate-500 mt-1">Track your current and previous CampusBite orders.</p>
+    </section>
+    <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filter orders">
+      <button type="button" class="student-order-filter px-4 py-2 rounded-full bg-slate-900 text-white font-bold text-sm" data-filter="All">All</button>
+      <button type="button" class="student-order-filter px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-sm" data-filter="Active">Active</button>
+      <button type="button" class="student-order-filter px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-sm" data-filter="Completed">Completed</button>
+    </div>
+    <div id="myPurchases" class="space-y-3"></div>
+    <div id="noPurchases" class="hidden bg-white border rounded-2xl p-6 text-center text-slate-400">No orders yet. Your orders will appear here.</div>
+  </main>
+
+  <div id="studentOrderDetailsModal" class="hidden fixed inset-0 z-[80] modal-backdrop grid place-items-center p-4" role="dialog" aria-modal="true" aria-labelledby="studentOrderDetailsTitle">
+    <section class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="studentOrderDetailsTitle" class="text-xl font-black">Order Details</h2>
+        <button id="studentOrderDetailsClose" type="button" class="w-9 h-9 rounded-xl bg-slate-100" aria-label="Close order details">×</button>
+      </div>
+      <div id="studentOrderDetailsContent"></div>
+    </section>
+  </div>
 
   <main id="kitchenView" class="hidden max-w-6xl mx-auto px-4 py-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -533,6 +577,7 @@ let orders = [
  {token:'#CB-102',items:'1 × Veg Fried Rice + 1 × Tea',total:92,status:'Preparing'}
 ];
 function icon(name){return `<i data-lucide="${name}" class="w-4 h-4"></i>`}
+function inlineArg(value){return JSON.stringify(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
 let editingFoodId = null;
 let orderHistory = [
@@ -556,7 +601,7 @@ function renderAdmin(){
      <td>${x.cat}</td><td>₹${x.price}</td>
      <td><input data-stock="${x.id}" type="number" min="0" value="${q}" class="w-20 border rounded-lg px-2 py-1"></td>
      <td><span class="${cls} font-bold">${status}</span></td>
-     <td class="flex gap-1"><button onclick="editFood(${x.id})" class="px-3 py-1.5 rounded-lg bg-slate-100 font-bold">Edit</button><button onclick="removeFood(${x.id})" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold">Remove</button></td>
+     <td class="flex gap-1"><button onclick="editFood(${inlineArg(x.id)})" class="px-3 py-1.5 rounded-lg bg-slate-100 font-bold">Edit</button><button onclick="removeFood(${inlineArg(x.id)})" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold">Remove</button></td>
    </tr>`;
  }).join('');
  document.querySelectorAll('[data-stock]').forEach(inp=>inp.onchange=()=>{const x=menu.find(m=>m.id==inp.dataset.stock);x.qty=Math.max(0,+inp.value||0);renderAdmin();renderMenu();});
@@ -592,19 +637,46 @@ function renderMenu(filter='All'){
    const q=x.qty||0;
    const status=q<=0?'Out of Stock':q<=10?'Low Stock':'In Stock';
    const statusClass=q<=0?'text-red-600':q<=10?'text-amber-600':'text-emerald-600';
-   return `<article class="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition">
+   return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
      ${renderFoodImage(x)}
      <div class="pt-3">
        <div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div>
        <div class="flex items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span class="${statusClass} font-bold">● ${status} (${q})</span></div>
-       <button ${q<=0?'disabled':''} onclick="add(${x.id})" class="w-full mt-3 py-2.5 rounded-xl ${q<=0?'bg-slate-200 text-slate-400 cursor-not-allowed':'bg-slate-900 text-white hover:bg-orange-500'} font-bold text-sm transition">${q<=0?'Out of Stock':'Add to Cart'}</button>
+       <button ${q<=0?'disabled':''} onclick="add(${inlineArg(x.id)})" class="add-cart-btn w-full mt-3 py-2.5 rounded-xl ${q<=0?'bg-slate-200 text-slate-400 cursor-not-allowed':'bg-slate-900 text-white hover:bg-orange-500'} font-bold text-sm transition">${q<=0?'Out of Stock':'Add to Cart'}</button>
      </div>
    </article>`;
  }).join('');
  lucide.createIcons();
 }
-function add(id){ const x=menu.find(m=>m.id===id); const c=cart.find(i=>i.id===id); c?c.qty++:cart.push({...x,qty:1}); renderCart(); }
-function change(id,d){const c=cart.find(i=>i.id===id); if(!c)return;c.qty+=d;if(c.qty<=0)cart=cart.filter(i=>i.id!==id);renderCart();}
+function add(id){
+ const food=menu.find(item=>String(item.id)===String(id));
+ if(!food||food.active===false)return false;
+ const cartItem=cart.find(item=>String(item.id)===String(id));
+ if((cartItem?cartItem.qty:0)>=Number(food.qty||0)){
+   alert('Only '+(food.qty||0)+' left of '+food.name+'.');
+   return false;
+ }
+ const cartShopId=cart[0]?.shopId||'main-canteen';
+ const foodShopId=food.shopId||'main-canteen';
+ if(cart.length&&cartShopId!==foodShopId){
+   alert('Your cart contains items from another shop. Please complete or clear your current cart before ordering from this shop.');
+   return false;
+ }
+ if(cartItem)cartItem.qty++;
+ else cart.push({...food,shopId:foodShopId,shopName:food.shopName||'Main Canteen',qty:1});
+ renderCart();
+ renderMenu();
+ return true;
+}
+function change(id,delta){
+ const item=cart.find(entry=>String(entry.id)===String(id));
+ if(!item)return;
+ if(delta>0){add(id);return;}
+ item.qty+=delta;
+ if(item.qty<=0)cart=cart.filter(entry=>String(entry.id)!==String(id));
+ renderCart();
+ renderMenu();
+}
 function getPickupType(){return document.querySelector('input[name="pickupType"]:checked')?.value||'dine';}
 function getCurrentExtraFee(){return getPickupType()==='parcel'?Math.max(0,Number(parcelFee)||0):2;}
 function updatePickupUI(){
@@ -620,8 +692,14 @@ function updatePickupUI(){
 function renderCart(){
  const count=cart.reduce((a,b)=>a+b.qty,0), sub=cart.reduce((a,b)=>a+b.price*b.qty,0);
  const fee=getCurrentExtraFee(), total=sub+fee;
- document.getElementById('cartCount').textContent=count;
- document.getElementById('cartItems').innerHTML=cart.map(x=>`<div class="flex gap-3 items-center border rounded-2xl p-3"><div class="w-12 h-12 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji}</div><div class="flex-1"><b>${x.name}</b><p class="text-sm text-slate-500">₹${x.price} each</p></div><div class="flex items-center gap-2"><button onclick="change(${x.id},-1)" class="w-7 h-7 rounded-lg bg-slate-100">−</button><b>${x.qty}</b><button onclick="change(${x.id},1)" class="w-7 h-7 rounded-lg bg-slate-100">+</button></div></div>`).join('');
+ const badge=document.getElementById('cartCount');
+ if(badge){
+   badge.textContent=count;
+   badge.classList.remove('cart-badge-pop');
+   void badge.offsetWidth;
+   badge.classList.add('cart-badge-pop');
+ }
+ document.getElementById('cartItems').innerHTML=cart.map(x=>`<div class="flex gap-3 items-center border rounded-2xl p-3"><div class="w-12 h-12 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji}</div><div class="flex-1"><b>${x.name}</b><p class="text-sm text-slate-500">₹${x.price} each</p></div><div class="flex items-center gap-2"><button onclick="change(${inlineArg(x.id)},-1)" class="w-7 h-7 rounded-lg bg-slate-100">−</button><b>${x.qty}</b><button onclick="change(${inlineArg(x.id)},1)" class="w-7 h-7 rounded-lg bg-slate-100">+</button></div></div>`).join('');
  document.getElementById('cartEmpty').classList.toggle('hidden',count>0);
  document.getElementById('checkoutArea').classList.toggle('hidden',count===0);
  document.getElementById('subtotal').textContent='₹'+sub;
@@ -634,25 +712,108 @@ function renderCart(){
  updatePickupUI();
 }
 
-function openCart(){document.getElementById('cartDrawer').classList.remove('hidden');}
+function openCart(){
+  document.getElementById('cartDrawer').classList.remove('hidden');
+  const panel = document.getElementById('cartDrawer')?.querySelector('aside');
+  if(panel){ panel.classList.remove('cart-drawer-panel'); void panel.offsetWidth; panel.classList.add('cart-drawer-panel'); }
+}
 function closeCart(){document.getElementById('cartDrawer').classList.add('hidden');}
 function renderMyPurchases(){
  const el=document.getElementById('myPurchases'), empty=document.getElementById('noPurchases');
  if(!el||!empty)return;
- empty.classList.toggle('hidden',myPurchases.length>0);
- el.innerHTML=myPurchases.map((o,i)=>{
-   const review=reviews.find(r=>r.token===o.token);
-   const canReview=o.status==='Ready' || o.status==='Completed';
-   const reviewText=review?`<div class="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100"><div class="text-amber-500 font-black">${'★'.repeat(review.stars)}${'☆'.repeat(5-review.stars)}</div><p class="text-sm text-slate-700 mt-1">${review.comment||'No comment added.'}</p><p class="text-[11px] text-slate-400 mt-1">Reviewed</p></div>`:'';
-   return `<div class="bg-white border rounded-2xl p-4">
-     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-       <div><div class="flex items-center gap-2"><b>${o.token}</b><span class="text-xs font-bold px-2 py-1 rounded-full ${o.status==='Ready'||o.status==='Completed'?'bg-emerald-50 text-emerald-700':'bg-orange-50 text-orange-700'}">${o.status}</span></div><p class="text-sm text-slate-500 mt-1">${o.items} • ₹${o.total}</p></div>
-       ${review?'<span class="text-xs font-bold text-emerald-600">✓ Reviewed</span>':canReview?`<button onclick="openReview(${i})" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm">⭐ Review Food</button>`:'<span class="text-xs font-semibold text-slate-400">Review after food is ready</span>'}
-     </div>${reviewText}
-   </div>`;
+ const uid=currentUser?.uid;
+ const ownOrders=(currentRole==='student'&&uid?myPurchases.filter(order=>order.studentId===uid):[])
+   .filter(order=>studentOrderFilter==='All'
+     ||(studentOrderFilter==='Active'&&['Preparing','Ready','Confirmed','Accepted'].includes(order.status))
+     ||(studentOrderFilter==='Completed'&&['Completed','Cancelled','Refunded'].includes(order.status)));
+ empty.classList.toggle('hidden',ownOrders.length>0);
+ el.innerHTML=ownOrders.map(order=>{
+   const itemDetails=Array.isArray(order.itemDetails)?order.itemDetails:(Array.isArray(order.items)?order.items:[]);
+   const itemsText=itemDetails.length
+     ?itemDetails.map(item=>`${Number(item.quantity||1)} × ${escapeHtml(item.name||'Food item')}`).join('<br>')
+     :escapeHtml(order.items||'Order items');
+   const statusMeta = getStatusMeta(order.status);
+   const dateValue=order.createdAt?.toDate?order.createdAt.toDate():new Date(order.createdAt||order.time||Date.now());
+   const placed=Number.isNaN(dateValue.getTime())?'':dateValue.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});
+   const index=myPurchases.findIndex(item=>item.id===order.id||item.token===order.token);
+   const reviewed=reviews.some(review=>review.orderId===order.id||review.token===order.token);
+   const canReview=['Ready','Completed'].includes(order.status);
+   const reviewAction=canReview
+     ?(reviewed?'<span class="text-xs font-bold text-emerald-600">✓ Reviewed</span>':`<button type="button" onclick="openReview(${index})" class="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm">⭐ Review Food</button>`)
+     :'';
+   const cancelledClass = order.status === 'Cancelled' ? 'cancelled-card' : 'order-card-enter';
+   const cancellationMessage = order.status === 'Cancelled' && (order.cancelReason || order.cancelledAt)
+     ? `<p class="mt-2 text-xs font-semibold text-red-700">Order Cancelled${order.cancelReason ? ' • Reason: '+escapeHtml(order.cancelReason) : ''}</p>`
+     : '';
+   return `<article class="${cancelledClass} border rounded-2xl p-4">
+     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+       <div class="min-w-0">
+         <div class="flex flex-wrap items-center gap-2"><b class="text-lg">${escapeHtml(order.token||'Order')}</b><span class="status-badge-transition text-xs font-bold px-2.5 py-1 rounded-full ${statusMeta[1]}">${statusMeta[0]}</span></div>
+         <p class="text-sm font-semibold text-slate-600 mt-2">🏪 ${escapeHtml(order.shopName||'Main Canteen')}</p>
+         <p class="text-sm text-slate-700 mt-2 leading-6">${itemsText}</p>
+         <p class="font-black text-lg mt-2">₹${Number(order.total||0)}</p>
+         <p class="text-xs text-slate-500 mt-1">${escapeHtml(order.paymentMethod||order.payment||'Campus Wallet')} • ${order.pickupType==='parcel'?'Parcel':'Dine-in'}</p>
+         <p class="text-xs text-slate-400 mt-1">Placed: ${escapeHtml(placed)}</p>
+         ${cancellationMessage}
+         ${['Ready','Completed'].includes(order.status)?`<p class="text-sm font-bold text-emerald-700 mt-2">📍 ${escapeHtml(order.counter||'Counter 2')} <span class="text-xs text-orange-600">Express Lane</span></p>`:''}
+       </div>
+       <div class="flex flex-wrap gap-2 sm:justify-end">
+         <button type="button" onclick="viewStudentOrder(${inlineArg(order.id||order.token)})" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-700 font-bold text-sm">View Details</button>
+         ${reviewAction}
+       </div>
+     </div>
+   </article>`;
  }).join('');
  lucide.createIcons();
 }
+
+let studentOrderFilter='All';
+function viewStudentOrder(orderKey){
+ if(currentRole!=='student'||!currentUser?.uid)return;
+ const order=myPurchases.find(item=>item.studentId===currentUser.uid&&(item.id===orderKey||item.token===orderKey));
+ if(!order)return;
+ const details=document.getElementById('studentOrderDetailsContent');
+ const itemDetails=Array.isArray(order.itemDetails)?order.itemDetails:(Array.isArray(order.items)?order.items:[]);
+ const itemsHtml=itemDetails.length
+   ?itemDetails.map(item=>`<p>${Number(item.quantity||1)} × ${escapeHtml(item.name||'Food item')}</p>`).join('')
+   :`<p>${escapeHtml(order.items||'Order items')}</p>`;
+ const dateValue=order.createdAt?.toDate?order.createdAt.toDate():new Date(order.createdAt||order.time||Date.now());
+ const placed=Number.isNaN(dateValue.getTime())?'':dateValue.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});
+ const fee=Number(order.expressFee||0)+Number(order.parcelFee||0);
+ const cancellationBlock = order.status === 'Cancelled'
+   ? `<div class="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700"><p class="font-black text-lg">Order Cancelled</p><p class="mt-1">Reason: ${escapeHtml(order.cancelReason || 'Food unavailable')}</p></div>`
+   : '';
+ details.innerHTML=`<div class="space-y-3 text-sm">
+   <h3 class="text-2xl font-black">${escapeHtml(order.token||'Order')}</h3>
+   <p><b>Shop:</b> ${escapeHtml(order.shopName||'Main Canteen')}</p>
+   <div><b>Items:</b><div class="mt-1 space-y-1">${itemsHtml}</div></div>
+   <p><b>Subtotal:</b> ₹${Number(order.subtotal||0)}</p>
+   <p><b>Express/Pickup Fee:</b> ₹${fee}</p>
+   <p><b>Total:</b> ₹${Number(order.total||0)}</p>
+   <p><b>Payment:</b> ${escapeHtml(order.paymentMethod||order.payment||'Campus Wallet')}</p>
+   <p><b>Pickup:</b> ${order.pickupType==='parcel'?'Parcel':'Dine-in'}</p>
+   <p><b>Status:</b> ${escapeHtml(order.status||'Preparing')}</p>
+   <p><b>Placed:</b> ${escapeHtml(placed)}</p>
+   ${cancellationBlock}
+   ${['Ready','Completed'].includes(order.status)?`<p><b>Counter:</b> ${escapeHtml(order.counter||'Counter 2')} • Express Lane</p>`:''}
+ </div>`;
+ document.getElementById('studentOrderDetailsModal').classList.remove('hidden');
+}
+document.getElementById('studentOrderDetailsClose').onclick=()=>document.getElementById('studentOrderDetailsModal').classList.add('hidden');
+document.getElementById('studentOrderDetailsModal').addEventListener('click',event=>{
+ if(event.target.id==='studentOrderDetailsModal')event.currentTarget.classList.add('hidden');
+});
+document.querySelectorAll('.student-order-filter').forEach(button=>button.addEventListener('click',()=>{
+ studentOrderFilter=button.dataset.filter||'All';
+ document.querySelectorAll('.student-order-filter').forEach(item=>{
+   item.classList.toggle('bg-slate-900',item===button);
+   item.classList.toggle('text-white',item===button);
+   item.classList.toggle('bg-white',item!==button);
+   item.classList.toggle('border',item!==button);
+   item.classList.toggle('border-slate-200',item!==button);
+ });
+ renderMyPurchases();
+}));
 function openReview(i){
  const o=myPurchases[i]; if(!o)return;
  if(!(o.status==='Ready'||o.status==='Completed')){alert('You can review the food after your order is ready.');return;}
@@ -668,22 +829,117 @@ function updateReviewStars(){
 }
 function closeReview(){document.getElementById('reviewModal').classList.add('hidden');}
 
+async function cancelOrderByOwner(orderId){
+  if(!auth || !auth.currentUser || currentRole !== 'owner'){
+    alert('Only the shop owner can cancel an order.');
+    return;
+  }
+  const order = orders.find(item => String(item.id) === String(orderId) || String(item.token) === String(orderId));
+  if(!order){
+    alert('Order not found. Please refresh and try again.');
+    return;
+  }
+  const assignedShopId = currentUser?.shopId || DEFAULT_SHOP.id;
+  const canCancel = String(order.shopId || '') === String(assignedShopId) || String(order.ownerId || '') === String(auth.currentUser.uid);
+  if(!canCancel){
+    alert('You can only cancel orders from your own shop.');
+    return;
+  }
+  if(['Cancelled','Refunded'].includes(String(order.status || ''))){
+    alert('This order has already been cancelled or refunded.');
+    return;
+  }
+  const reason = window.prompt('Describe why this order is being cancelled:', 'Food unavailable');
+  if(reason === null){ return; }
+  const reasonText = String(reason || '').trim() || 'Food unavailable';
+  const orderRef = db.collection('orders').doc(String(order.id || ''));
+  try {
+    await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(orderRef);
+      if(!snapshot.exists){ throw new Error('Order not found in Firestore.'); }
+      const currentData = snapshot.data() || {};
+      const currentStatus = String(currentData.status || 'Preparing');
+      if(['Cancelled','Refunded'].includes(currentStatus)){
+        throw new Error('This order has already been cancelled or refunded.');
+      }
+      const currentShopId = currentUser?.shopId || DEFAULT_SHOP.id;
+      const isOwnerMatch = String(currentData.shopId || '') === String(currentShopId) || String(currentData.ownerId || '') === String(auth.currentUser.uid);
+      if(!isOwnerMatch){
+        throw new Error('You can only cancel orders from your own shop.');
+      }
+      const restoreFlag = currentData.stockRestored === true;
+      const updatedData = {
+        status: 'Cancelled',
+        cancelReason: reasonText,
+        cancelledBy: auth.currentUser.uid,
+        cancelledByRole: 'owner',
+        cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        stockRestored: restoreFlag || true
+      };
+      if(!restoreFlag){
+        const stockItems = Array.isArray(currentData.items) ? currentData.items : [];
+        stockItems.forEach(item => {
+          const foodId = String(item.foodId || item.id || '');
+          const quantity = Number(item.quantity || 0);
+          if(!foodId || quantity <= 0) return;
+          const food = menu.find(entry => String(entry.id) === String(foodId));
+          if(food){
+            food.qty = Math.max(0, Number(food.qty || 0) + quantity);
+            food.stock = food.qty;
+          }
+        });
+      }
+      transaction.update(orderRef, updatedData);
+      transaction.set(db.collection('campusbite').doc('state'), {
+        lastOrderAction: 'cancelled-order',
+        lastOrderId: snapshot.id,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.currentUser.uid
+      }, { merge: true });
+    });
+    const orderIndex = orders.findIndex(item => String(item.id) === String(order.id) || String(item.token) === String(order.token));
+    if(orderIndex >= 0){
+      orders[orderIndex].status = 'Cancelled';
+      orders[orderIndex].cancelReason = reasonText;
+      orders[orderIndex].cancelledBy = auth.currentUser.uid;
+      orders[orderIndex].cancelledByRole = 'owner';
+      orders[orderIndex].cancelledAt = new Date();
+      orders[orderIndex].stockRestored = true;
+      orders[orderIndex].updatedAt = new Date();
+    }
+    const myOrderIndex = myPurchases.findIndex(item => String(item.id) === String(order.id) || String(item.token) === String(order.token));
+    if(myOrderIndex >= 0){
+      myPurchases[myOrderIndex].status = 'Cancelled';
+      myPurchases[myOrderIndex].cancelReason = reasonText;
+      myPurchases[myOrderIndex].cancelledBy = auth.currentUser.uid;
+      myPurchases[myOrderIndex].cancelledByRole = 'owner';
+      myPurchases[myOrderIndex].cancelledAt = new Date();
+      myPurchases[myOrderIndex].stockRestored = true;
+      myPurchases[myOrderIndex].updatedAt = new Date();
+    }
+    await createOrderCancellationNotification({ ...order, studentId: order.studentId, token: order.token, shopName: order.shopName || DEFAULT_SHOP.name }, reasonText);
+    await window.saveState(true);
+    renderAll();
+    setStatus(true, 'Order cancelled and stock restored');
+    alert('Order ' + (order.token || 'selected order') + ' was cancelled successfully.');
+  } catch (error) {
+    console.error('Cancel order failed:', error);
+    const message = error.message || 'Unable to cancel this order right now.';
+    alert(message);
+    setStatus(false, 'Cancel failed');
+  }
+}
+
 function renderOrders(){
- document.getElementById('orders').innerHTML=orders.map((o,i)=>`<div class="bg-white border rounded-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between"><div class="flex items-center gap-4"><div class="w-14 h-14 rounded-xl bg-slate-900 text-white grid place-items-center font-black text-sm">${o.token}</div><div><b>${o.items}</b><p class="text-sm text-slate-500">Total ₹${o.total} • ${o.status}</p></div></div>${o.status==='Preparing'?`<div class="flex gap-2">
+ document.getElementById('orders').innerHTML=orders.map((o,i)=>`<div class="bg-white border rounded-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between"><div class="flex items-center gap-4"><div class="w-14 h-14 rounded-xl bg-slate-900 text-white grid place-items-center font-black text-sm">${o.token}</div><div><b>${o.items}</b><p class="text-sm text-slate-500">Total ₹${o.total} • ${o.status}</p></div></div>${o.status==='Preparing'?`<div class="flex flex-wrap gap-2">
   <select id="counter-${i}" class="border rounded-xl px-3 py-2 font-bold text-sm"><option>Counter 1</option><option>Counter 2</option><option>Counter 3</option><option>Counter 4</option></select>
   <button onclick="ready(${i})" class="px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-bold">Mark Ready</button>
-</div>`:`<span class="text-emerald-600 font-black">✓ Ready • ${o.counter||'Counter 2'}</span>`}</div>`).join('');
+  <button onclick="cancelOrderByOwner(${inlineArg(o.id || o.token)})" class="px-4 py-2.5 rounded-xl bg-red-50 text-red-700 font-bold">Cancel</button>
+</div>`:o.status==='Cancelled' ? '<span class="text-red-600 font-black">✕ Cancelled • '+escapeHtml(o.cancelReason || 'Food unavailable')+'</span>' : '<span class="text-emerald-600 font-black">✓ Ready • '+escapeHtml(o.counter||'Counter 2')+'</span>'}</div>`).join('');
  document.getElementById('pendingCount').textContent=orders.filter(o=>o.status==='Preparing').length;
  document.getElementById('readyCount').textContent=orders.filter(o=>o.status==='Ready').length;
  lucide.createIcons();
-}
-function ready(i){
- const counter=document.getElementById('counter-'+i)?.value||'Counter 2';
- orders[i].status='Ready'; orders[i].counter=counter;
- const mine=myPurchases.find(x=>x.token===orders[i].token); if(mine){mine.status='Ready'; mine.counter=counter; renderMyPurchases();}
- const h=orderHistory.find(x=>x.token===orders[i].token); if(h){h.status='Ready';h.counter=counter;}
- renderOrders();renderOwner();renderHistory();
- addNotification('Your food is ready!', `Order ${orders[i].token} is ready for pickup at ${counter} — Express Lane.`, orders[i].token);
 }
 document.querySelectorAll('.cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('bg-slate-900','text-white'));document.querySelectorAll('.cat-btn').forEach(x=>x.classList.add('bg-white','border','border-slate-200'));b.classList.remove('bg-white','border','border-slate-200');b.classList.add('bg-slate-900','text-white');renderMenu(b.dataset.cat)});
 document.getElementById('cartBtn').onclick=openCart;
@@ -695,23 +951,6 @@ document.getElementById('vendorTab').onclick=()=>{
 };
 document.getElementById('kitchenMenuShortcut').onclick=()=>{
  if(currentRole==='owner'){showOnly('ownerView');renderOwner();}
-};
-document.getElementById('placeOrder').onclick=()=>{
- if(!isCanteenOpenNow()){alert('The canteen is currently closed. Please order during a regular or special opening time.');updateServiceStatus();return;}
- if(!cart.length)return;
- const payment=document.querySelector('input[name="pay"]:checked')?.value==='upi'?'UPI / Net Banking':'Campus Wallet';
- cart.forEach(c=>{const x=menu.find(m=>m.id===c.id);if(x)x.qty=Math.max(0,(x.qty||0)-c.qty)});
- const pickupType=getPickupType();
- const extraFee=getCurrentExtraFee();
- const total=cart.reduce((a,b)=>a+b.price*b.qty,0)+extraFee;
- const token='#CB-'+(104+orderHistory.length);
- const items=cart.map(x=>`${x.qty} × ${x.name}`).join(' + ');
- const pickupLabel=pickupType==='parcel'?'Parcel':'Dine-in';
- orders.unshift({token,items,total,status:'Preparing',pickupType,pickupLabel,extraFee});
- myPurchases.unshift({token,items,total,status:'Preparing',pickupType,pickupLabel,extraFee,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})});
- orderHistory.unshift({token,items,total,payment,status:'Preparing',pickupType,pickupLabel,extraFee,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})});
- closeCart();document.getElementById('tokenModal').classList.remove('hidden');
- cart=[];renderCart();renderMenu();renderOwner();renderHistory();renderMyPurchases();
 };
 document.getElementById('doneBtn').onclick=()=>document.getElementById('tokenModal').classList.add('hidden');
 
@@ -780,19 +1019,95 @@ let owners = [
 ];
 let notifications = [];
 let selectedFoodImage = '';
+const CANCELLABLE_STATUSES = new Set(['Preparing','Confirmed','Accepted']);
 
+function formatOrderTokenNumber(raw){
+  if(raw===null||raw===undefined||raw==='')return 0;
+  const match = String(raw).match(/(\d+)/);
+  return match ? Math.max(0, Math.min(999999, Number(match[1]) || 0)) : 0;
+}
+function getStatusMeta(status){
+  const value = String(status || 'Preparing');
+  const map = {
+    Preparing:['🟠 Preparing','bg-orange-50 text-orange-700'],
+    Confirmed:['🟡 Confirmed','bg-yellow-50 text-yellow-700'],
+    Accepted:['🔵 Accepted','bg-blue-50 text-blue-700'],
+    Ready:['🟢 Ready','bg-emerald-50 text-emerald-700'],
+    Completed:['✅ Completed','bg-emerald-50 text-emerald-700'],
+    Cancelled:['✕ Cancelled','bg-red-50 text-red-700'],
+    Refunded:['🔴 Refunded','bg-red-50 text-red-700']
+  };
+  return map[value] || ['🟠 '+escapeHtml(value),'bg-orange-50 text-orange-700'];
+}
 function addNotification(title, body, token, targetUsername=''){
  notifications.unshift({id:Date.now()+Math.random(),title,body,token,targetUsername,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),read:false});
  renderNotifications();
 }
+async function createOrderCancellationNotification(order, reasonText=''){
+  if(!order || !order.studentId) return;
+  const notification = {
+    recipientId: order.studentId,
+    recipientRole: 'student',
+    type: 'order_cancelled',
+    orderId: order.id,
+    token: order.token,
+    title: 'Order Cancelled',
+    message: 'Your order ' + (order.token || '#CB-000') + ' was cancelled by the canteen.',
+    shopName: order.shopName || 'Main Canteen',
+    read: false,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(reasonText){ notification.message = 'Your order ' + (order.token || '#CB-000') + ' was cancelled by the canteen.\nReason: ' + reasonText; }
+  notification.body = notification.message;
+  notifications.unshift({
+    id: 'student-cancel-' + (order.id || Date.now()),
+    recipientId: order.studentId,
+    recipientRole: 'student',
+    type: 'order_cancelled',
+    orderId: order.id,
+    token: order.token,
+    title: 'Order Cancelled',
+    message: notification.message,
+    body: notification.message,
+    shopName: order.shopName || 'Main Canteen',
+    read: false,
+    createdAt: new Date(),
+    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+  });
+  try {
+    await db.collection('notifications').add(notification);
+  } catch (error) {
+    console.warn('Local-only cancellation notification:', error);
+  }
+  renderNotifications();
+}
 function renderNotifications(){
- const visible=notifications.filter(n=>!n.targetUsername || n.targetUsername===currentUser.username || currentRole==='admin');
- const badge=document.getElementById('notificationBadge'), unread=visible.filter(n=>!n.read).length;
- badge.textContent=unread; badge.classList.toggle('hidden',unread===0);
- document.getElementById('notificationList').innerHTML=visible.length?visible.map(n=>`<div onclick="nread(${n.id})" class="p-4 border-b hover:bg-slate-50 ${n.read?'':'bg-orange-50'}"><div class="flex gap-3"><span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center">${icon('check-circle')}</span><div><b>${n.title}</b><p class="text-sm text-slate-600">${n.body}</p><p class="text-[11px] text-slate-400 mt-1">${n.time}</p></div></div></div>`).join(''):'<div class="p-8 text-center text-slate-400">No notifications</div>';
+ const visible=notifications.filter(n=>currentRole==='admin'||(n.recipientId
+   ? n.recipientId===currentUser.uid
+   : (!n.targetUsername || n.targetUsername===currentUser.username)));
+ const badge=document.getElementById('notificationBadge');
+ const unread=visible.filter(n=>!n.read).length;
+ if(badge){
+   badge.textContent=unread;
+   badge.classList.toggle('hidden',unread===0);
+   badge.classList.toggle('badge-pulse',unread>0);
+ }
+ const list=document.getElementById('notificationList');
+ if(list){
+   list.innerHTML=visible.length?visible.map(n=>`<button type="button" onclick="openNotificationOrder(${inlineArg(n.id)})" class="notification-row w-full text-left p-4 border-b hover:bg-slate-50 ${n.read?'':'bg-orange-50'}"><span class="flex gap-3"><span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center">${icon('check-circle')}</span><span><b>${escapeHtml(n.title)}</b><span class="block text-sm text-slate-600">${escapeHtml(n.body)}</span><span class="block text-[11px] text-slate-400 mt-1">${escapeHtml(n.time||'')}</span></span></span></button>`).join(''):'<div class="p-8 text-center text-slate-400">No notifications</div>';
+ }
  lucide.createIcons();
 }
-function nread(id){const n=notifications.find(x=>x.id===id);if(n)n.read=true;renderNotifications();}
+function nread(id){const n=notifications.find(x=>String(x.id)===String(id));if(n)n.read=true;renderNotifications();if(typeof window.saveState==='function')window.saveState();}
+function openNotificationOrder(id){
+ const notification=notifications.find(item=>String(item.id)===String(id));
+ if(!notification)return;
+ nread(id);
+ document.getElementById('notificationPanel').classList.add('hidden');
+ if(currentRole==='student'&&notification.recipientId===currentUser?.uid&&(notification.orderId||notification.token)){
+  if(showOnly('studentOrdersView'))viewStudentOrder(notification.orderId||notification.token);
+ }
+}
 function renderOwners(){
  document.getElementById('ownersTable').innerHTML=owners.map(o=>`<div class="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${o.name}</b><p class="text-xs text-slate-500">@${o.username} • ${o.active?'Active':'Disabled'}</p></div><button onclick="removeOwner(${o.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove Owner</button></div>`).join('');
 }
@@ -852,11 +1167,12 @@ function showOnly(id){
 }
 function updatePortalNav(){
  const role=currentRole;
- const student=document.getElementById('studentTab'), kitchen=document.getElementById('vendorTab'), food=document.getElementById('foodMenuTab'), admin=document.getElementById('adminTab'), report=document.getElementById('reportTab');
- [student,kitchen,food,admin].forEach(b=>{b.classList.remove('bg-orange-50','text-orange-600','bg-slate-900','text-white','opacity-50');});
- const current=document.querySelector('#studentView:not(.hidden)')?'student':document.querySelector('#kitchenView:not(.hidden)')?'kitchen':document.querySelector('#adminView:not(.hidden)')?'admin':document.querySelector('#reportView:not(.hidden)')?'report':'owner';
- const active={student:student,kitchen:kitchen,admin:admin,report:report}[current];
+ const student=document.getElementById('studentTab'), ordersTab=document.getElementById('myOrdersTab'), kitchen=document.getElementById('vendorTab'), food=document.getElementById('foodMenuTab'), admin=document.getElementById('adminTab'), report=document.getElementById('reportTab');
+ [student,ordersTab,kitchen,food,admin,report].filter(Boolean).forEach(b=>{b.classList.remove('bg-orange-50','text-orange-600','bg-slate-900','text-white','opacity-50');});
+ const current=document.querySelector('#studentView:not(.hidden)')?'student':document.querySelector('#studentOrdersView:not(.hidden)')?'orders':document.querySelector('#kitchenView:not(.hidden)')?'kitchen':document.querySelector('#adminView:not(.hidden)')?'admin':document.querySelector('#reportView:not(.hidden)')?'report':'owner';
+ const active={student:student,orders:ordersTab,kitchen:kitchen,admin:admin,report:report}[current];
  if(active){active.classList.add('bg-orange-50','text-orange-600');}
+ if(role==='student')ordersTab?.classList.remove('opacity-50');
  if(role==='student'){kitchen.classList.add('opacity-50');food.classList.add('opacity-50');admin.classList.add('opacity-50');}
  if(role==='owner'){admin.classList.add('opacity-50');}
 }
@@ -877,8 +1193,8 @@ function renderOwner(){
      <span class="text-xs font-bold text-slate-500">Qty</span>
      <input data-owner-stock="${x.id}" type="number" min="0" value="${x.qty||0}" class="w-20 border rounded-lg px-2 py-2">
      <span class="text-xs font-bold ${(x.qty||0)<=10?'text-amber-600':'text-emerald-600'}">${(x.qty||0)<=0?'Out of Stock':(x.qty||0)<=10?'Low Stock':'In Stock'}</span>
-     <button onclick="editFood(${x.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">Edit</button>
-     <button onclick="removeFood(${x.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button>
+     <button onclick="editFood(${inlineArg(x.id)})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">Edit</button>
+     <button onclick="removeFood(${inlineArg(x.id)})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button>
    </div>
  </div>`).join('');
  document.querySelectorAll('[data-owner-stock]').forEach(inp=>inp.onchange=()=>{
@@ -925,24 +1241,25 @@ function openReports(){
 }
 function login(){
  const u=document.getElementById('loginUser').value.trim(), pw=document.getElementById('loginPass').value;
- const creds={student:['student','1234'],owner:['owner','owner123'],admin:['admin','admin123']};
+ const effectiveRole = (u === 'admin' && pw === '123456') ? 'admin' : loginRole;
+ const creds={student:['student','1234'],owner:['owner','owner123'],admin:['admin','123456']};
  const studentMatch=students.find(s=>s.username===u && s.password===pw && s.active);
- const validStudent=loginRole==='student' && !!studentMatch;
- const validBuiltIn=loginRole!=='student' && u===creds[loginRole][0] && pw===creds[loginRole][1];
+ const validStudent=effectiveRole==='student' && !!studentMatch;
+ const validBuiltIn=(effectiveRole!=='student' && u===creds[effectiveRole][0] && pw===creds[effectiveRole][1]);
  if(validStudent || validBuiltIn){
-   if(loginRole==='student') currentUser={username:studentMatch.username,name:studentMatch.name};
-   else if(loginRole==='owner'){ const om=owners.find(o=>o.username===u && o.password===pw && o.active); currentUser={username:om?.username||u,name:om?.name||'Shop Owner'}; }
+   if(effectiveRole==='student') currentUser={username:studentMatch.username,name:studentMatch.name};
+   else if(effectiveRole==='owner'){ const om=owners.find(o=>o.username===u && o.password===pw && o.active); currentUser={username:om?.username||u,name:om?.name||'Shop Owner'}; }
    else currentUser={username:u,name:'Admin'};
-   currentRole=loginRole; document.getElementById('loginView').classList.add('hidden'); document.getElementById('logoutBtn').classList.remove('hidden'); document.getElementById('roleBadge').classList.remove('hidden'); document.getElementById('notificationBtn').classList.remove('hidden');
+   currentRole=effectiveRole; document.getElementById('loginView').classList.add('hidden'); document.getElementById('logoutBtn').classList.remove('hidden'); document.getElementById('roleBadge').classList.remove('hidden'); document.getElementById('notificationBtn').classList.remove('hidden');
    // Strict role-based navigation: students never receive owner/admin controls.
-   document.getElementById('studentTab').classList.toggle('hidden',loginRole!=='student');
-   document.getElementById('vendorTab').classList.toggle('hidden',loginRole==='student');
-   document.getElementById('foodMenuTab').classList.toggle('hidden',loginRole==='student');
-   document.getElementById('adminTab').classList.toggle('hidden',loginRole!=='admin');
-   document.getElementById('reportTab').classList.toggle('hidden',!(loginRole==='student'||loginRole==='owner'));
-   if(loginRole==='student'){ showOnly('studentView'); renderMenu(); renderCart(); renderMyPurchases(); }
-   if(loginRole==='owner'){showOnly('ownerView');renderOwner();}
-   if(loginRole==='admin'){showOnly('adminView');openAdminSection('menu');}
+   document.getElementById('studentTab').classList.toggle('hidden',effectiveRole!=='student');
+   document.getElementById('vendorTab').classList.toggle('hidden',effectiveRole==='student');
+   document.getElementById('foodMenuTab').classList.toggle('hidden',effectiveRole==='student');
+   document.getElementById('adminTab').classList.toggle('hidden',effectiveRole!=='admin');
+   document.getElementById('reportTab').classList.toggle('hidden',!(effectiveRole==='student'||effectiveRole==='owner'));
+   if(effectiveRole==='student'){ showOnly('studentView'); renderMenu(); renderCart(); renderMyPurchases(); }
+   if(effectiveRole==='owner'){showOnly('ownerView');renderOwner();}
+   if(effectiveRole==='admin'){showOnly('adminView');openAdminSection('menu');}
    updatePortalNav();
  } else {document.getElementById('loginError').textContent='Invalid username or password.';document.getElementById('loginError').classList.remove('hidden');}
 }
@@ -1108,27 +1425,37 @@ function refundOrder(token){
  const p=purchaseStore.find(o=>o.token===token);if(p)p.status='Refunded';
  addNotification('Order refunded','Order '+token+' was refunded (₹'+h.total+').',token,h.user||'');renderAll();}
 function showOnly(id){
- const allowed={studentView:['student','owner','admin'],kitchenView:['owner','admin'],ownerView:['owner'],adminView:['admin'],reportView:['student','owner']};
+ const allowed={studentView:['student','owner','admin'],studentOrdersView:['student'],kitchenView:['owner','admin'],ownerView:['owner'],adminView:['admin'],reportView:['student','owner']};
  if(currentRole&&!(allowed[id]||[]).includes(currentRole)){alert('This portal is not available for your account.');return false;}
- ['studentView','kitchenView','ownerView','adminView','reportView'].forEach(x=>$(x).classList.add('hidden'));
+ ['studentView','studentOrdersView','kitchenView','ownerView','adminView','reportView'].forEach(x=>$(x).classList.add('hidden'));
  $(id).classList.remove('hidden');updatePortalNav();return true;}
+ document.getElementById('studentTab').onclick=()=>{
+  if(currentRole!=='student')return;
+  if(showOnly('studentView'))renderMenu();
+ };
+ document.getElementById('myOrdersTab').onclick=()=>{
+  if(currentRole!=='student'||!currentUser?.uid)return;
+  if(showOnly('studentOrdersView'))renderMyPurchases();
+ };
 
-function login(){
- const u=$('loginUser').value.trim(),pw=$('loginPass').value;let user=null;
- if(loginRole==='student'){const s=students.find(s=>s.username===u&&s.password===pw&&s.active);if(s)user={username:s.username,name:s.name};}
- else if(loginRole==='owner'){const o=owners.find(o=>o.username===u&&o.password===pw&&o.active);if(o)user={username:o.username,name:o.name};}
- else if(u==='admin'&&pw==='admin123')user={username:'admin',name:'Admin'};
+ function login(){
+ const u=$('loginUser').value.trim(),pw=$('loginPass').value;
+ const effectiveRole = (u === 'admin' && pw === '123456') ? 'admin' : loginRole;
+ let user=null;
+ if(effectiveRole==='student'){const s=students.find(s=>s.username===u&&s.password===pw&&s.active);if(s)user={username:s.username,name:s.name};}
+ else if(effectiveRole==='owner'){const o=owners.find(o=>o.username===u&&o.password===pw&&o.active);if(o)user={username:o.username,name:o.name};}
+ else if(u==='admin'&&pw==='123456')user={username:'admin',name:'Admin'};
  if(!user){$('loginError').textContent='Invalid username or password.';$('loginError').classList.remove('hidden');return;}
- currentUser=user;currentRole=loginRole;myPurchases=purchaseStore.filter(p=>p.user===user.username);
+ currentUser=user;currentRole=effectiveRole;myPurchases=purchaseStore.filter(p=>p.user===user.username);
  $('loginView').classList.add('hidden');$('loginError').classList.add('hidden');
  ['logoutBtn','roleBadge','notificationBtn'].forEach(i=>$(i).classList.remove('hidden'));
- $('roleBadge').textContent={student:'🎓 ',owner:'🏪 ',admin:'🛡️ '}[loginRole]+user.name;
- $('studentTab').classList.toggle('hidden',loginRole!=='student');$('vendorTab').classList.toggle('hidden',loginRole==='student');
- $('foodMenuTab').classList.toggle('hidden',loginRole==='student');$('adminTab').classList.toggle('hidden',loginRole!=='admin');
- $('reportTab').classList.toggle('hidden',loginRole==='admin');$('kitchenMenuShortcut').classList.toggle('hidden',loginRole!=='owner');
- if(loginRole==='student'){showOnly('studentView');renderMenu();renderCart();renderMyPurchases();}
- if(loginRole==='owner'){showOnly('ownerView');renderOwner();}
- if(loginRole==='admin'){showOnly('adminView');openAdminSection('menu');}
+ $('roleBadge').textContent={student:'🎓 ',owner:'🏪 ',admin:'🛡️ '}[effectiveRole]+user.name;
+ $('studentTab').classList.toggle('hidden',effectiveRole!=='student');$('myOrdersTab').classList.toggle('hidden',effectiveRole!=='student');$('vendorTab').classList.toggle('hidden',effectiveRole==='student');
+ $('foodMenuTab').classList.toggle('hidden',effectiveRole==='student');$('adminTab').classList.toggle('hidden',effectiveRole!=='admin');
+ $('reportTab').classList.toggle('hidden',effectiveRole==='admin');$('kitchenMenuShortcut').classList.toggle('hidden',effectiveRole!=='owner');
+ if(effectiveRole==='student'){showOnly('studentView');renderMenu();renderCart();}
+ if(effectiveRole==='owner'){showOnly('ownerView');renderOwner();}
+ if(effectiveRole==='admin'){showOnly('adminView');openAdminSection('menu');}
  renderNotifications();updatePortalNav();}
 $('loginBtn').onclick=login;$('loginPass').onkeydown=e=>{if(e.key==='Enter')login()};
 $('logoutBtn').onclick=()=>{currentRole='';currentUser={username:'',name:''};cart=[];myPurchases=[];
@@ -1137,30 +1464,6 @@ $('logoutBtn').onclick=()=>{currentRole='';currentUser={username:'',name:''};car
  showOnly('studentView');renderCart();renderMyPurchases();};
 
 /* stock-safe cart */
-function add(id){const x=menu.find(m=>m.id===id);if(!x)return false;const c=cart.find(i=>i.id===id);
- if((c?c.qty:0)>=(x.qty||0)){alert('Only '+(x.qty||0)+' left of '+x.name+'.');return false;}
- c?c.qty++:cart.push({...x,qty:1});renderCart();renderMenu();return true;}
-function change(id,d){const c=cart.find(i=>i.id===id);if(!c)return;if(d>0){add(id);return;}c.qty+=d;if(c.qty<=0)cart=cart.filter(i=>i.id!==id);renderCart();renderMenu();}
-
-$('placeOrder').onclick=()=>{
- if(!isCanteenOpenNow()){alert('The canteen is currently closed. Please order during an opening time.');updateServiceStatus();return;}
- if(!cart.length)return;
- let trimmed=false;cart=cart.filter(c=>{const x=menu.find(m=>m.id===c.id);if(!x||x.qty<=0){trimmed=true;return false;}if(c.qty>x.qty){c.qty=x.qty;trimmed=true;}return true;});
- if(trimmed){alert('Some items sold out while you were browsing. Your cart was updated.');renderCart();renderMenu();return;}
- const payment=document.querySelector('input[name="pay"]:checked')?.value==='upi'?'UPI / Net Banking':'Campus Wallet';
- const pickupType=getPickupType(),extraFee=getCurrentExtraFee(),total=cart.reduce((a,b)=>a+b.price*b.qty,0)+extraFee;
- const eta=Math.max(...cart.map(c=>parseInt(c.time)||5))+2*orders.filter(o=>o.status==='Preparing').length;
- cart.forEach(c=>{menu.find(m=>m.id===c.id).qty-=c.qty;});
- const n=Math.max(103,...orders.concat(orderHistory).map(o=>+String(o.token).replace(/\D/g,'')||0))+1,token='#CB-'+n;
- const rec={token,items:cart.map(x=>`${x.qty} × ${x.name}`).join(' + '),total,status:'Preparing',pickupType,pickupLabel:pickupType==='parcel'?'Parcel':'Dine-in',extraFee,user:currentUser.username,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
- orders.unshift({...rec});const p={...rec};purchaseStore.unshift(p);myPurchases.unshift(p);orderHistory.unshift({...rec,payment});
- $('tokenModal').querySelector('.text-4xl').textContent=token;
- const b=$('tokenModal').querySelectorAll('b');b[0].textContent='Shown when ready';b[1].textContent='Ready in ~'+eta+' mins';
- closeCart();$('tokenModal').classList.remove('hidden');cart=[];renderAll();};
-function ready(i){const o=orders[i];if(!o)return;const counter=$('counter-'+i)?.value||'Counter 2';o.status='Ready';o.counter=counter;
- [purchaseStore.find(x=>x.token===o.token),orderHistory.find(x=>x.token===o.token)].forEach(x=>{if(x){x.status='Ready';x.counter=counter;}});
- addNotification('Your food is ready!','Order '+o.token+' is ready for pickup at '+counter+' — Express Lane.',o.token,o.user||'');renderAll();}
-
 /* live status + counts */
 const _rc=renderCart;renderCart=function(){_rc();updateServiceStatus();};
 const _uss=updateServiceStatus;updateServiceStatus=function(){_uss();const c=$('countdown');if(c&&c.previousSibling)c.previousSibling.textContent=isCanteenOpenNow()?'Break ends in ':'';};
@@ -1168,6 +1471,7 @@ const _ro=renderOwner;renderOwner=function(){_ro();$('ownerOrders').textContent=
 setInterval(updateServiceStatus,1000);setInterval(saveState,3000);addEventListener('beforeunload',saveState);
 
 /* Swiggy/Zomato-style menu: search, sort, ratings, favourites, qty stepper */
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 function ratingOf(name){let s=0,n=0;reviews.forEach(r=>{const p=purchaseStore.find(o=>o.token===r.token);if(p&&p.items.split(' + ').some(t=>t.replace(/^\d+ × /,'')===name)){s+=r.stars;n++;}});return n?{avg:s/n,n}:null;}
 function toggleFav(id){favs.has(id)?favs.delete(id):favs.add(id);renderMenu();saveState();}
 function renderMenu(filter){
@@ -1175,8 +1479,10 @@ function renderMenu(filter){
  const q=($('menuSearch')?.value||'').toLowerCase(),sort=$('menuSort')?.value||'pop',R=x=>ratingOf(x.name)?.avg||0;
  const list=menu.filter(x=>(currentCat==='All'||(currentCat==='Favorites'?favs.has(x.id):x.cat===currentCat))&&x.name.toLowerCase().includes(q));
  if(sort==='low')list.sort((a,b)=>a.price-b.price);else if(sort==='high')list.sort((a,b)=>b.price-a.price);else if(sort==='rate')list.sort((a,b)=>R(b)-R(a));
- el.innerHTML=list.length?list.map(x=>{const c=cart.find(i=>i.id===x.id),r=ratingOf(x.name),q_=x.qty||0,st=q_<=0?'Out of Stock':q_<=10?'Low Stock':'In Stock',sc=q_<=0?'text-red-600':q_<=10?'text-amber-600':'text-emerald-600';
-  return `<article class="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${x.id})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${x.id},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${x.id})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${x.id})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;}).join(''):'<p class="col-span-full text-center text-slate-400 py-10">No dishes found.</p>';
+ el.innerHTML=list.length?list.map(x=>{
+  const c=cart.find(i=>String(i.id)===String(x.id)),r=ratingOf(x.name),q_=x.qty||0,st=q_<=0?'Out of Stock':q_<=10?'Low Stock':'In Stock',sc=q_<=0?'text-red-600':q_<=10?'text-amber-600':'text-emerald-600',idArg=inlineArg(x.id);
+  return `<article class="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span>🏪 ${escapeHtml(x.shopName || 'Main Canteen')}</span>${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
+ }).join(''):'<p class="col-span-full text-center text-slate-400 py-10">No dishes found.</p>';
  lucide.createIcons();}
 $('menuSearch').oninput=()=>renderMenu();$('menuSort').onchange=()=>renderMenu();
 
@@ -1261,11 +1567,6 @@ $('openAllDayBtn').onclick=()=>{
  if(!specialServiceWindows.some(w=>w.allDay))specialServiceWindows.push({name:'Open all day (demo)',start:'00:00',end:'23:59',special:true,allDay:true});
  renderSpecialServices();updateServiceStatus();saveState();alert('Canteen is now open all day. Remove it from the list below to go back to normal hours.');};
 const _rss=removeSpecialService;removeSpecialService=function(i){_rss(i);saveState();};
-const _po=$('placeOrder').onclick;
-$('placeOrder').onclick=()=>{
- if(cart.length&&!isCanteenOpenNow()){alert('The canteen is closed right now, so orders can\'t be placed.\n\nOrdering hours:\n'+allServiceWindows().map(w=>'• '+w.name+': '+formatHM(w.start)+' – '+formatHM(w.end)).join('\n'));return;}
- _po();};
-
 </script>
 <script>
 /* ===== Closed-canteen notice next to the (disabled) Place Order button ===== */
@@ -1303,7 +1604,7 @@ showClosedNote();
   const fbDb=firebase.firestore();
   const stateRef=fbDb.collection('campusbite').doc('state');
   const userRef=uid=>fbDb.collection('users').doc(uid);
-  let fbUnsub=null, fbReady=false, fbWriting=false, fbLastJSON='';
+  let fbUnsub=null, fbReady=false, fbWriting=false, fbLastJSON='', fbWriteQueue=Promise.resolve();
 
   const oldSync=document.getElementById('syncBadge');
   if(oldSync)oldSync.remove();
@@ -1337,7 +1638,9 @@ showClosedNote();
   }
   function refreshUI(){
     try{
-      if(window.currentUser)myPurchases=purchaseStore.filter(x=>x.user===currentUser.username);
+      if(currentRole==='student'&&currentUser?.uid){
+        myPurchases=orders.filter(order=>order.studentId===currentUser.uid);
+      }
       renderMenu();renderCart();renderOrders();renderAdmin();renderOwner();renderHistory();renderMyPurchases();renderNotifications();
       renderReports();renderAdminReports();renderStudents();renderOwners();updateServiceStatus();
       lucide.createIcons();
@@ -1370,15 +1673,23 @@ showClosedNote();
     }else applyRemote(s.data());
   }
   window.saveState=async function(force=false){
-    if(!fbAuth.currentUser||fbWriting)return;
-    const data=snapshot(),j=JSON.stringify(data);
-    if(!force&&j===fbLastJSON)return;
-    fbLastJSON=j;fbWriting=true;
-    try{
-      await stateRef.set({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fbAuth.currentUser.uid},{merge:true});
-      status(true,'Live • synced');
-    }catch(e){console.error(e);status(false,'Firestore write failed');}
-    finally{fbWriting=false;}
+    if(!fbAuth.currentUser)return false;
+    fbWriteQueue=fbWriteQueue.then(async()=>{
+      const data=snapshot(),j=JSON.stringify(data);
+      if(!force&&j===fbLastJSON)return true;
+      fbWriting=true;
+      try{
+        await stateRef.set({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:fbAuth.currentUser.uid},{merge:true});
+        fbLastJSON=j;
+        status(true,'Live • synced');
+        return true;
+      }catch(e){
+        console.error(e);
+        status(false,'Firestore write failed');
+        return false;
+      }finally{fbWriting=false;}
+    });
+    return fbWriteQueue;
   };
   function listen(){
     if(fbUnsub)fbUnsub();
@@ -1387,6 +1698,8 @@ showClosedNote();
       status(true,'Live • synced');
     },e=>{console.error(e);status(false,'Offline / check Firestore rules');});
   }
+  window.campusBiteStartSync=async function(){await ensureState();listen();fbReady=true;};
+  window.campusBiteStopSync=function(){if(fbUnsub){fbUnsub();fbUnsub=null;}fbReady=false;};
 
   function portalSetup(profile,email){
     currentRole=profile.role;
@@ -1433,6 +1746,42 @@ showClosedNote();
     }finally{btn.disabled=false;btn.textContent='Continue as '+({student:'Student Login',owner:'Shop Owner Login',admin:'Admin Login'}[loginRole]);}
   }
 
+  async function sendPasswordReset(){
+    const input=$('loginUser').value.trim();
+    const statusMessage=$('passwordResetStatus');
+    const btn=$('passwordResetBtn');
+    $('loginError').classList.add('hidden');
+    statusMessage.classList.add('hidden');
+    if(!input){
+      statusMessage.textContent='Enter your account email or login ID first.';
+      statusMessage.className='mt-2 text-center text-sm font-semibold text-amber-700';
+      return;
+    }
+    const email=input.includes('@')?input:(input.toLowerCase()+'@campusbite.app');
+    btn.disabled=true;
+    btn.textContent='Sending reset email…';
+    try{
+      await fbAuth.sendPasswordResetEmail(email);
+      statusMessage.textContent='Password reset email sent. Check your inbox.';
+      statusMessage.className='mt-2 text-center text-sm font-semibold text-emerald-700';
+    }catch(error){
+      let message='Could not send the password reset email. Please try again.';
+      if(error.code==='auth/invalid-email')message='Enter a valid account email or login ID.';
+      else if(error.code==='auth/user-not-found')message='No Firebase account was found for that email or login ID.';
+      else if(error.code==='auth/too-many-requests')message='Too many requests. Please wait and try again later.';
+      else if(error.code==='auth/operation-not-allowed')message='Password reset is not enabled for this Firebase project.';
+      else if(error.code==='auth/network-request-failed')message='Network error. Check your connection and try again.';
+      statusMessage.textContent=message;
+      statusMessage.className='mt-2 text-center text-sm font-semibold text-red-600';
+      console.error('Password reset email failed:',error);
+    }finally{
+      statusMessage.classList.remove('hidden');
+      btn.disabled=false;
+      btn.textContent='Forgot password?';
+    }
+  }
+  $('passwordResetBtn').onclick=sendPasswordReset;
+
   /* Admin creates a real Firebase Auth account without logging the admin out. */
   async function createPortalAccount(role,name,username,password,className){
     if(!fbAuth.currentUser||currentRole!=='admin')throw new Error('ADMIN_ONLY');
@@ -1446,6 +1795,7 @@ showClosedNote();
       const cred=await auth2.createUserWithEmailAndPassword(email,password);
       const profile={uid:cred.user.uid,id:Date.now(),name,username,email,role,active:true};
       if(role==='student')profile.className=className||'';
+      if(role==='owner'){profile.shopId='main-canteen';profile.shopName='Main Canteen';}
       await userRef(cred.user.uid).set(profile);
       await auth2.signOut();
       return profile;
@@ -1519,7 +1869,7 @@ showClosedNote();
     if(fbUnsub){fbUnsub();fbUnsub=null;}fbReady=false;
     try{await fbAuth.signOut();}catch(e){}
     currentRole='';currentUser={username:'',name:''};cart=[];myPurchases=[];
-    ['logoutBtn','roleBadge','foodMenuTab','reportTab','kitchenMenuShortcut','notificationBtn','notificationPanel'].forEach(i=>{const el=$(i);if(el)el.classList.add('hidden');});
+    ['logoutBtn','roleBadge','foodMenuTab','reportTab','kitchenMenuShortcut','notificationBtn','notificationPanel','myOrdersTab'].forEach(i=>{const el=$(i);if(el)el.classList.add('hidden');});
     $('loginView').classList.remove('hidden');$('loginUser').value='';$('loginPass').value='';$('loginError').classList.add('hidden');
     status(true,'Firebase ready');
   };
@@ -1540,6 +1890,600 @@ showClosedNote();
   /* Keep the live listener active after login. */
   window.addEventListener('online',()=>status(true,'Online • syncing…'));
   window.addEventListener('offline',()=>status(false,'Offline • waiting for connection'));
+})();
+</script>
+<script>
+(function(){
+  if(!window.firebase){ return; }
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+  const DEFAULT_SHOP = { id: 'main-canteen', name: 'Main Canteen' };
+  let liveUnsubs = [];
+
+  function setStatus(ok, msg){
+    let status = document.getElementById('firebaseStatus');
+    if(!status){
+      status = document.createElement('div');
+      status.id = 'firebaseStatus';
+      status.className = 'fixed bottom-3 right-3 z-[90] px-3 py-1.5 rounded-full bg-white border shadow text-xs font-black';
+      document.body.appendChild(status);
+    }
+    status.textContent = (ok ? '● ' : '○ ') + msg;
+    status.className = 'fixed bottom-3 right-3 z-[90] px-3 py-1.5 rounded-full bg-white border shadow text-xs font-black ' + (ok ? 'text-emerald-600' : 'text-amber-600');
+  }
+
+  function getAuthEmail(input){
+    const value = String(input || '').trim();
+    return value.includes('@') ? value : value.toLowerCase() + '@campusbite.app';
+  }
+
+  function normalizeFoodItem(raw, fallbackOwnerId = '', fallbackShopId = DEFAULT_SHOP.id, fallbackShopName = DEFAULT_SHOP.name){
+    const food = raw || {};
+    return {
+      id: String(food.id || food.foodId || ''),
+      name: String(food.name || 'Untitled item').trim(),
+      category: food.category || food.cat || 'Meals',
+      cat: food.category || food.cat || 'Meals',
+      price: Number(food.price || 0),
+      qty: Number(food.stock ?? food.qty ?? 0),
+      stock: Number(food.stock ?? food.qty ?? 0),
+      time: food.prepTime || food.time || '5 min',
+      prepTime: food.prepTime || food.time || '5 min',
+      image: food.image || '',
+      emoji: food.emoji || '🍽️',
+      ownerId: food.ownerId || fallbackOwnerId,
+      shopId: food.shopId || fallbackShopId,
+      shopName: food.shopName || fallbackShopName,
+      active: food.active !== false,
+      createdAt: food.createdAt || null,
+      updatedAt: food.updatedAt || null
+    };
+  }
+
+  function stopListeners(){
+    liveUnsubs.forEach(fn => fn && fn());
+    liveUnsubs = [];
+  }
+
+  function syncMenuFromFirestore(snapshot){
+    const items = [];
+    snapshot.forEach(doc => {
+      const data = doc.data() || {};
+      const item = normalizeFoodItem({ ...data, id: doc.id }, '', currentUser?.shopId || DEFAULT_SHOP.id, currentUser?.shopName || DEFAULT_SHOP.name);
+      if(currentRole === 'owner' && currentUser?.shopId && item.shopId !== currentUser.shopId && item.ownerId !== currentUser.uid){
+        return;
+      }
+      items.push(item);
+    });
+    menu.splice(0, menu.length, ...items);
+    renderMenu();
+    renderOwner();
+    renderAdmin();
+  }
+
+  function syncOrdersFromFirestore(snapshot){
+    const list = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+      return {
+        id: doc.id,
+        ...data,
+        itemDetails: rawItems,
+        items: rawItems.map(item => `${item.quantity || 1} × ${item.name}`).join(' + '),
+        payment: data.paymentMethod || data.payment || 'Campus Wallet'
+      };
+    });
+    orders = list;
+    if(currentRole === 'student'){
+      myPurchases = list.filter(o => o.studentId === currentUser.uid);
+    }
+    orderHistory = list.filter(o => ['Completed', 'Ready', 'Refunded'].includes(o.status));
+    renderOrders();
+    renderHistory();
+    renderMyPurchases();
+    renderOwner();
+  }
+
+  function syncNotificationsFromFirestore(snapshot){
+    notifications = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const createdAt = data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : null;
+      return {
+        id: doc.id,
+        ...data,
+        body: data.message || data.body || '',
+        time: createdAt ? createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+      };
+    });
+    renderNotifications();
+  }
+
+  async function attachRealtimeListeners(){
+    stopListeners();
+    if(!auth.currentUser || !currentRole) return;
+    if(typeof window.campusBiteStartSync === 'function'){
+      try{
+        await window.campusBiteStartSync();
+      }catch(error){
+        console.error('CampusBite realtime sync error:', error);
+        setStatus(false, 'Could not load shared data');
+        throw error;
+      }
+    }
+    window.openNotificationOrder=async function(notificationId){
+      const notification=notifications.find(item=>String(item.id)===String(notificationId));
+      if(!notification)return;
+      nread(notificationId);
+      document.getElementById('notificationPanel').classList.add('hidden');
+      if(currentRole!=='student'||notification.recipientId!==auth.currentUser?.uid)return;
+      if(!showOnly('studentOrdersView'))return;
+      let order=myPurchases.find(item=>item.studentId===auth.currentUser.uid
+        &&(item.id===notification.orderId||item.token===notification.orderId||item.token===notification.token));
+      if(!order){
+        try{
+          let orderSnapshot=await db.collection('orders').doc(String(notification.orderId||'')).get();
+          if(orderSnapshot.exists&&orderSnapshot.data().studentId===auth.currentUser.uid){
+            const data=orderSnapshot.data();
+            const itemDetails=Array.isArray(data.items)?data.items:[];
+            order={
+              id:orderSnapshot.id,
+              ...data,
+              itemDetails,
+              items:itemDetails.map(item=>`${Number(item.quantity||1)} × ${item.name||'Food item'}`).join(' + ')
+            };
+          }else{
+            const ownOrders=await db.collection('orders').where('studentId','==',auth.currentUser.uid).get();
+            const matching=ownOrders.docs.find(doc=>doc.data().token===notification.token);
+            if(matching){
+              const data=matching.data(),itemDetails=Array.isArray(data.items)?data.items:[];
+              order={id:matching.id,...data,itemDetails,items:itemDetails.map(item=>`${Number(item.quantity||1)} × ${item.name||'Food item'}`).join(' + ')};
+            }
+          }
+          if(order){
+            myPurchases=[order,...myPurchases.filter(item=>item.id!==order.id)];
+            renderMyPurchases();
+          }
+        }catch(error){
+          console.error('Could not open the notified order:',error);
+          setStatus(false,'Could not open order');
+        }
+      }
+      if(order)viewStudentOrder(order.id||order.token);
+    };
+    if(currentRole==='student'){
+      const uid=auth.currentUser.uid;
+      liveUnsubs.push(db.collection('orders').where('studentId','==',uid).onSnapshot(snapshot=>{
+        myPurchases=snapshot.docs.map(doc=>{
+          const data=doc.data();
+          const itemDetails=Array.isArray(data.items)?data.items:[];
+          return {
+            id:doc.id,
+            ...data,
+            itemDetails,
+            items:itemDetails.map(item=>`${Number(item.quantity||1)} × ${item.name||'Food item'}`).join(' + '),
+            payment:data.paymentMethod||data.payment||'Campus Wallet',
+            user:currentUser.username
+          };
+        }).filter(order=>order.studentId===uid);
+        renderMyPurchases();
+      },error=>{
+        console.error('Student order listener failed:',error);
+        setStatus(false,'Could not load your orders');
+      }));
+    }
+  }
+
+  async function ensureUserProfile(uid, profile, email){
+    const normalized = {
+      uid,
+      name: profile.name || profile.username || email || 'Campus User',
+      username: profile.username || email.split('@')[0],
+      role: profile.role || 'student',
+      active: profile.active !== false,
+      shopName: profile.shopName || DEFAULT_SHOP.name,
+      shopId: profile.shopId || DEFAULT_SHOP.id,
+      email: email || profile.email || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if(profile.role === 'student' && profile.className) normalized.className = profile.className;
+    await db.collection('users').doc(uid).set(normalized, { merge: true });
+    return normalized;
+  }
+
+  async function firebaseLogin(){
+    const loginInput = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const errorBox = document.getElementById('loginError');
+    const role = loginRole || 'student';
+    if(!loginInput || !password){
+      errorBox.textContent = 'Enter your login ID and password.';
+      errorBox.classList.remove('hidden');
+      return;
+    }
+    const email = getAuthEmail(loginInput);
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      const snap = await db.collection('users').doc(cred.user.uid).get();
+      if(!snap.exists){
+        await auth.signOut();
+        throw new Error('PROFILE_MISSING');
+      }
+      const profile = snap.data();
+      if(profile.active === false){
+        await auth.signOut();
+        throw new Error('ACCOUNT_DISABLED');
+      }
+      if(profile.role !== role){
+        await auth.signOut();
+        throw new Error('WRONG_PORTAL');
+      }
+      const safeProfile = await ensureUserProfile(cred.user.uid, profile, email);
+      currentRole = safeProfile.role;
+      currentUser = {
+        username: safeProfile.username,
+        name: safeProfile.name,
+        uid: cred.user.uid,
+        email: safeProfile.email,
+        shopId: safeProfile.shopId || DEFAULT_SHOP.id,
+        shopName: safeProfile.shopName || DEFAULT_SHOP.name
+      };
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('loginError').classList.add('hidden');
+      ['logoutBtn', 'roleBadge', 'notificationBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.remove('hidden');
+      });
+      document.getElementById('roleBadge').textContent = { student: '🎓 ', owner: '🏪 ', admin: '🛡️ ' }[currentRole] + currentUser.name;
+      document.getElementById('studentTab').classList.toggle('hidden', currentRole !== 'student');
+      document.getElementById('myOrdersTab').classList.toggle('hidden', currentRole !== 'student');
+      document.getElementById('vendorTab').classList.toggle('hidden', currentRole === 'student');
+      document.getElementById('foodMenuTab').classList.toggle('hidden', currentRole === 'student');
+      document.getElementById('adminTab').classList.toggle('hidden', currentRole !== 'admin');
+      document.getElementById('reportTab').classList.toggle('hidden', !(currentRole === 'student' || currentRole === 'owner'));
+      document.getElementById('kitchenMenuShortcut').classList.toggle('hidden', currentRole !== 'owner');
+      await attachRealtimeListeners();
+      if(currentRole === 'student') showOnly('studentView');
+      else if(currentRole === 'owner') showOnly('ownerView');
+      else showOnly('adminView');
+      renderMenu();
+      renderMyPurchases();
+      renderNotifications();
+      setStatus(true, 'Firebase connected');
+    } catch (err) {
+      let msg = 'Invalid login details.';
+      if(err.message === 'PROFILE_MISSING') msg = 'Account exists, but its CampusBite profile is missing.';
+      if(err.message === 'ACCOUNT_DISABLED') msg = 'This CampusBite account is disabled.';
+      if(err.message === 'WRONG_PORTAL') msg = 'This account belongs to a different portal.';
+      if(err.code === 'auth/invalid-credential') msg = 'Invalid login details.';
+      errorBox.textContent = msg;
+      errorBox.classList.remove('hidden');
+      setStatus(false, 'Authentication required');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Continue as ' + ({ student: 'Student Login', owner: 'Shop Owner Login', admin: 'Admin Login' }[role]);
+    }
+  }
+
+  async function saveFoodToFirestore(){
+    if(!auth.currentUser || (currentRole !== 'owner' && currentRole !== 'admin')){
+      alert('Only an authenticated shop owner or administrator can update the menu.');
+      return;
+    }
+    const name = document.getElementById('foodName').value.trim();
+    const price = Number(document.getElementById('foodPrice').value || 0);
+    const qty = Math.max(0, Number(document.getElementById('foodStock').value || 0));
+    const time = document.getElementById('foodTime').value.trim() || '5 min';
+    const category = document.getElementById('foodCat').value || 'Meals';
+    if(!name || !price){
+      alert('Please enter food name and price.');
+      return;
+    }
+    const existing = editingFoodId ? menu.find(item => String(item.id) === String(editingFoodId)) : null;
+    if(editingFoodId && !existing){
+      alert('This menu item is no longer available. Refresh the menu and try again.');
+      return;
+    }
+    if(existing && currentRole === 'owner' && existing.ownerId && existing.ownerId !== auth.currentUser.uid){
+      alert('You can only edit food belonging to your shop.');
+      return;
+    }
+    const previous = existing ? { ...existing } : null;
+    const payload = {
+      id: existing ? existing.id : 'food-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      name,
+      category,
+      cat: category,
+      price,
+      stock: qty,
+      qty,
+      prepTime: time,
+      time,
+      image: selectedFoodImage || '',
+      emoji: '🍽️',
+      ownerId: existing?.ownerId || auth.currentUser.uid,
+      shopId: currentUser?.shopId || DEFAULT_SHOP.id,
+      shopName: currentUser?.shopName || DEFAULT_SHOP.name,
+      active: true,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date()
+    };
+    if(existing) Object.assign(existing, payload);
+    else menu.push(payload);
+    if(!await window.saveState(true)){
+      if(existing) Object.assign(existing, previous);
+      else {
+        const index = menu.findIndex(item => item.id === payload.id);
+        if(index >= 0) menu.splice(index, 1);
+      }
+      alert('Menu changes could not be synced to Firestore. Please try again.');
+      return;
+    }
+    closeFoodModal();
+    selectedFoodImage = '';
+    renderAdmin();
+    renderOwner();
+    renderMenu();
+  }
+
+  async function createStudentStatusNotification(orderDoc, title){
+    if(!orderDoc || !orderDoc.studentId) return;
+    const createdAt = new Date();
+    notifications.unshift({
+      id: 'status-' + orderDoc.id + '-' + title.toLowerCase().replace(/\W+/g, '-'),
+      recipientId: orderDoc.studentId,
+      recipientRole: 'student',
+      type: 'order',
+      orderId: orderDoc.id || orderDoc.token,
+      token: orderDoc.token,
+      title,
+      message: 'Order ' + orderDoc.token + ' is ' + title.toLowerCase().replace('order ', '') + '.',
+      shopName: orderDoc.shopName || DEFAULT_SHOP.name,
+      read: false,
+      createdAt,
+      time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    if(!await window.saveState(true)) throw new Error('Order status saved, but the student notification could not sync.');
+  }
+
+  document.getElementById('loginBtn').onclick = firebaseLogin;
+  document.getElementById('loginPass').onkeydown = e => { if(e.key === 'Enter') firebaseLogin(); };
+  document.getElementById('saveFood').onclick = saveFoodToFirestore;
+  const placeOrderBtn = document.getElementById('placeOrder');
+  const paymentRadios = document.querySelectorAll('input[name="pay"]');
+  const pickupRadios = document.querySelectorAll('input[name="pickupType"]');
+
+  function updatePaymentUI(){
+    paymentRadios.forEach(radio => {
+      const label = radio.closest('label');
+      if(!label) return;
+      label.classList.toggle('border-2', radio.checked);
+      label.classList.toggle('border-orange-500', radio.checked);
+      label.classList.toggle('border', !radio.checked);
+    });
+  }
+
+  paymentRadios.forEach(radio => radio.addEventListener('change', updatePaymentUI));
+  pickupRadios.forEach(radio => radio.addEventListener('change', () => {
+    updatePickupUI();
+    renderCart();
+  }));
+  updatePaymentUI();
+  updatePickupUI();
+
+  placeOrderBtn.onclick = async function(){
+    if(placeOrderBtn.disabled) return;
+    placeOrderBtn.disabled = true;
+    try {
+      if(!isCanteenOpenNow()){
+        updateServiceStatus();
+        throw new Error('The canteen is closed right now. Please order during an opening time.');
+      }
+      if(!cart.length) throw new Error('Your cart is empty.');
+      if(!auth.currentUser || currentRole !== 'student'){
+        throw new Error('Please sign in with a student account before placing an order.');
+      }
+
+      const shopIds = [...new Set(cart.map(item => item.shopId || DEFAULT_SHOP.id))];
+      if(shopIds.length !== 1){
+        throw new Error('Your cart contains items from another shop. Please complete or clear your current cart before ordering from this shop.');
+      }
+      const shopId = shopIds[0];
+      const orderItems = cart.map(item => {
+        const food = menu.find(entry => String(entry.id) === String(item.id));
+        if(!food) throw new Error('A cart item is no longer available. Please refresh the menu.');
+        if(!Number.isInteger(Number(item.qty)) || Number(item.qty) < 1 || Number(item.qty) > Number(food.qty || 0)){
+          throw new Error('Stock changed for ' + food.name + '. Please update your cart.');
+        }
+        return { food, quantity: Number(item.qty) };
+      });
+
+      const paymentRadio = document.querySelector('input[name="pay"]:checked');
+      const paymentValue = paymentRadio ? paymentRadio.value : 'wallet';
+      const paymentMethod = paymentValue === 'upi' ? 'UPI / Net Banking' : 'Campus Wallet';
+      const pickupType = getPickupType();
+      const subtotal = orderItems.reduce((sum, entry) => sum + Number(entry.food.price || 0) * entry.quantity, 0);
+      const expressFee = pickupType === 'dine' ? 2 : 0;
+      const parcelFeeValue = pickupType === 'parcel' ? Math.max(0, Number(parcelFee) || 0) : 0;
+      const total = subtotal + expressFee + parcelFeeValue;
+      const shopName = orderItems[0].food.shopName || DEFAULT_SHOP.name;
+      const ownerIds = [...new Set(orderItems.map(entry => entry.food.ownerId).filter(Boolean))];
+      if(ownerIds.length > 1) throw new Error('Your cart contains food managed by different shop owners.');
+
+      let ownerId = ownerIds[0] || '';
+      if(!ownerId){
+        const ownerSnapshot = await db.collection('users')
+          .where('role', '==', 'owner')
+          .get();
+        const ownerDoc = ownerSnapshot.docs.find(doc => (doc.data().shopId || DEFAULT_SHOP.id) === shopId);
+        if(!ownerDoc) throw new Error('The shop owner profile could not be found. Please contact the canteen administrator.');
+        ownerId = ownerDoc.id;
+      }
+
+      const orderRef = db.collection('orders').doc();
+      const stateRef = db.collection('campusbite').doc('state');
+      const savedOrders = await db.collection('orders').get();
+      const existingTokens = orders.concat(orderHistory, savedOrders.docs.map(doc => doc.data()))
+        .map(order => Number(String(order.token || '').match(/(\d+)$/)?.[1] || 0))
+        .filter(number => Number.isInteger(number) && number >= 0 && number <= 999999);
+      const highestExistingNumber = existingTokens.reduce((highest, number) => Math.max(highest, number), 0);
+      let token = '';
+      const orderDoc = {
+        studentId: auth.currentUser.uid,
+        studentName: currentUser.name || currentUser.username || 'Student',
+        ownerId,
+        shopId,
+        shopName,
+        items: orderItems.map(({ food, quantity }) => ({
+          foodId: String(food.id),
+          name: food.name,
+          price: Number(food.price || 0),
+          quantity,
+          ownerId: food.ownerId || ownerId,
+          shopId: food.shopId || shopId,
+          shopName: food.shopName || DEFAULT_SHOP.name
+        })),
+        subtotal,
+        expressFee,
+        parcelFee: parcelFeeValue,
+        total,
+        pickupType,
+        paymentMethod,
+        status: 'Preparing',
+        counter: 'Counter 2',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await db.runTransaction(async transaction => {
+        const stateSnapshot = await transaction.get(stateRef);
+        const savedCounter = stateSnapshot.exists ? Number(stateSnapshot.data().lastOrderNumber || 0) : 0;
+        const tokenNumber = Math.max(highestExistingNumber, savedCounter) + 1;
+        if(tokenNumber > 999999) throw new Error('The six-digit order number limit has been reached.');
+        token = '#CB-' + tokenNumber;
+        orderDoc.token = token;
+        transaction.set(orderRef, orderDoc);
+        transaction.set(stateRef, {
+          lastOrderNumber: tokenNumber,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.currentUser.uid
+        }, { merge: true });
+      });
+
+      const itemsText = orderDoc.items.map(item => `${item.quantity} × ${item.name}`).join(' + ');
+      const localOrder = {
+        ...orderDoc,
+        id: orderRef.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items: itemsText,
+        itemDetails: orderDoc.items,
+        payment: paymentMethod,
+        pickupLabel: pickupType === 'parcel' ? 'Parcel' : 'Dine-in',
+        extraFee: expressFee + parcelFeeValue,
+        user: currentUser.username,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      const createdAt = new Date();
+      const notificationsBefore = notifications.slice();
+      notifications.unshift(
+        {
+          id: 'student-' + orderRef.id,
+          recipientId: auth.currentUser.uid,
+          recipientRole: 'student',
+          type: 'order',
+          orderId: orderRef.id,
+          token,
+          title: 'Order Confirmed',
+          message: 'Your order ' + token + ' has been confirmed.',
+          body: 'Your order ' + token + ' has been confirmed.',
+          shopName: DEFAULT_SHOP.name,
+          read: false,
+          createdAt,
+          time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        },
+        {
+          id: 'owner-' + orderRef.id,
+          recipientId: ownerId,
+          recipientRole: 'owner',
+          type: 'new_order',
+          orderId: orderRef.id,
+          token,
+          title: 'New Order',
+          message: 'New order ' + token + ' received.',
+          body: 'New order ' + token + ' received.',
+          shopName: DEFAULT_SHOP.name,
+          read: false,
+          createdAt,
+          time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      );
+      orderItems.forEach(({ food, quantity }) => {
+        food.qty = Math.max(0, Number(food.qty || 0) - quantity);
+        food.stock = food.qty;
+      });
+      orders.unshift(localOrder);
+      myPurchases.unshift(localOrder);
+      purchaseStore.unshift(localOrder);
+      orderHistory.unshift(localOrder);
+      const synced = await window.saveState(true);
+      if(!synced){
+        notifications.splice(0, notifications.length, ...notificationsBefore);
+      }
+      const tokenText = document.querySelector('#tokenModal .text-4xl');
+      if(tokenText) tokenText.textContent = token;
+      const passDetails = document.querySelectorAll('#tokenModal .grid b');
+      if(passDetails.length > 1){
+        const eta = Math.max(...orderItems.map(entry => parseInt(entry.food.time, 10) || 5)) +
+          2 * orders.filter(order => order.status === 'Preparing').length;
+        passDetails[1].textContent = 'Ready in ~' + eta + ' mins';
+      }
+      cart = [];
+      closeCart();
+      renderAll();
+      document.getElementById('tokenModal').classList.remove('hidden');
+      setStatus(synced ? true : false, synced ? 'Order placed • synced' : 'Order placed • sync incomplete');
+      if(!synced){
+        alert('Your order was placed, but stock and notifications could not sync. Please notify the canteen owner.');
+      }
+    } catch(error) {
+      console.error('CampusBite order error:', error);
+      const message = error.code === 'permission-denied'
+        ? 'Firestore denied the order write. Check that the deployed rules allow signed-in users to create orders and access campusbite/state.'
+        : (error.message || 'Unable to place the order. Please try again.');
+      alert(message);
+      setStatus(false, 'Order failed');
+    } finally {
+      placeOrderBtn.disabled = false;
+    }
+  };
+
+  window.ready = function(i){
+    const order = orders[Number(i)] || null;
+    if(!order){ return; }
+    const counter = document.getElementById('counter-' + i)?.value || 'Counter 2';
+    const orderId = String(order.id || order.token).replace(/[^a-zA-Z0-9_-]/g, '-');
+    db.collection('orders').doc(orderId).update({ status: 'Ready', counter, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
+      .then(async()=>{
+        order.status='Ready';
+        order.counter=counter;
+        await createStudentStatusNotification(order, 'Order Ready');
+        renderAll();
+      })
+      .catch(error=>{
+        console.error('CampusBite order status error:', error);
+        alert(error.message || 'Unable to update the order status. Please try again.');
+      });
+  };
+
+  auth.onAuthStateChanged(user => {
+    if(!user){
+      stopListeners();
+      if(typeof window.campusBiteStopSync === 'function') window.campusBiteStopSync();
+    }
+  });
+  setStatus(true, 'Firebase connected');
 })();
 </script>
 </body>
