@@ -84,7 +84,7 @@ header>div>div:last-child{min-width:0}
   #menu article button{margin-top:.55rem}
   #cartDrawer aside{max-width:100%;padding:1rem}
   #checkoutArea .grid{grid-template-columns:1fr}
-  #foodModal>div,#studentModal>div,#ownerModal>div,#reviewModal>div,#tokenModal>div{max-height:92vh;overflow-y:auto}
+  #foodModal>div,#studentModal>div,#ownerModal>div,#adminModal>div,#reviewModal>div,#tokenModal>div{max-height:92vh;overflow-y:auto}
   #adminView>.flex:first-child{margin-right:-.8rem;padding-right:.8rem}
   #adminMenuSection .overflow-x-auto,#adminHistorySection .overflow-x-auto{margin:0 -1rem;padding:0 1rem}
   #adminView table{font-size:.75rem}
@@ -123,7 +123,7 @@ header>div>div:last-child{min-width:0}
         <button type="button" id="loginOwner" onclick="selectLoginRole('owner',this)" class="flex-1 py-3 rounded-lg font-bold text-sm text-slate-500">🏪 Shop Owner</button>
         <button type="button" id="loginAdmin" onclick="selectLoginRole('admin',this)" class="flex-1 py-3 rounded-lg font-bold text-sm text-slate-500">🛡️ Admin</button>
       </div>
-      <p class="text-center text-xs text-slate-500 mb-4">Choose your portal above before entering your login details.</p>
+      <p class="text-center text-xs text-slate-500 mb-4">Sign in with your Firebase account. Your account's assigned portal determines your access.</p>
       <div id="loginForm">
         <label class="text-sm font-bold">Campus Email / Login ID</label>
         <input id="loginUser" class="w-full mt-1 mb-3 border rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-200" placeholder="admin@campusbite.app or Campus ID">
@@ -135,7 +135,7 @@ header>div>div:last-child{min-width:0}
         <p id="loginError" class="hidden mt-3 text-center text-sm text-red-600 font-semibold"></p>
       </div>
       <div class="mt-5 p-3 rounded-xl bg-slate-50 text-xs text-slate-500 text-center">
-        Select your portal above and sign in with your campus account.
+        Admin accounts must be set up in Firebase Authentication and have an active Admin profile.
       </div>
     </div>
   </div>
@@ -301,6 +301,7 @@ header>div>div:last-child{min-width:0}
         <button id="adminHistoryBtn" class="admin-section-btn px-4 py-2 rounded-xl bg-white border font-bold text-sm">Order History</button>
         <button id="adminOwnersBtn" class="admin-section-btn px-4 py-2 rounded-xl bg-white border font-bold text-sm">Owners</button>
         <button id="adminStudentsBtn" class="admin-section-btn px-4 py-2 rounded-xl bg-white border font-bold text-sm">Students</button>
+        <button id="adminAdminsBtn" class="admin-section-btn px-4 py-2 rounded-xl bg-white border font-bold text-sm">Admins</button>
         <button id="adminServiceBtn" class="admin-section-btn px-4 py-2 rounded-xl bg-white border font-bold text-sm">Special Time</button>
         <button id="adminReportsBtn" class="admin-section-btn px-4 py-2 rounded-xl bg-white border font-bold text-sm">Tickets</button>
       </div>
@@ -347,6 +348,19 @@ header>div>div:last-child{min-width:0}
           <button id="addStudentBtn" class="px-3 py-2 rounded-xl bg-orange-500 text-white font-bold text-sm">+ Add Student</button>
         </div>
         <div id="studentsTable" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <section id="adminAdminsSection" class="hidden mt-5">
+      <div class="bg-white rounded-2xl border p-4 md:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-xl font-black">Administrators</h3>
+            <p class="text-sm text-slate-500">Create and view CampusBite administrator accounts.</p>
+          </div>
+          <button id="addAdminBtn" class="px-3 py-2 rounded-xl bg-orange-500 text-white font-bold text-sm">+ Add Admin</button>
+        </div>
+        <div id="adminsTable" class="space-y-2"></div>
       </div>
     </section>
 
@@ -551,6 +565,21 @@ header>div>div:last-child{min-width:0}
         <input id="ownerUsername" class="w-full border rounded-xl px-3 py-2" placeholder="Login username">
         <input id="ownerPassword" class="w-full border rounded-xl px-3 py-2" placeholder="Auth password (create in Firebase Auth)">
         <button id="saveOwner" class="w-full py-3 rounded-xl bg-slate-900 text-white font-black">Add Owner</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminModal" class="fixed inset-0 z-[77] hidden modal-backdrop grid place-items-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
+      <div class="flex items-center justify-between mb-4">
+        <div><h3 class="text-xl font-black">Add Administrator</h3><p class="text-xs text-slate-500">Creates a Firebase account with administrator access.</p></div>
+        <button id="adminModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button>
+      </div>
+      <div class="space-y-3">
+        <input id="adminName" class="w-full border rounded-xl px-3 py-2" placeholder="Administrator name" autocomplete="name">
+        <input id="adminUsername" class="w-full border rounded-xl px-3 py-2" placeholder="Login username" autocomplete="username">
+        <input id="adminPassword" type="password" minlength="6" class="w-full border rounded-xl px-3 py-2" placeholder="Password (at least 6 characters)" autocomplete="new-password">
+        <button id="saveAdmin" class="w-full py-3 rounded-xl bg-slate-900 text-white font-black">Create Admin</button>
       </div>
     </div>
   </div>
@@ -1121,9 +1150,36 @@ function renderFoodImage(x){
 }
 
 
+let admins = [];
 let students = [
  {id:1,name:'Demo Student',username:'student',password:'1234',className:'B.Com CA',active:true}
 ];
+
+function renderAdmins(){
+ const el=document.getElementById('adminsTable');
+ if(!el)return;
+ el.innerHTML='';
+ if(!admins.length){
+   const empty=document.createElement('p');
+   empty.className='py-6 text-center text-sm text-slate-400';
+   empty.textContent='No administrator accounts have been added here yet.';
+   el.appendChild(empty);
+   return;
+ }
+ admins.forEach(admin=>{
+   const card=document.createElement('div');
+   card.className='border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+   const details=document.createElement('div');
+   const name=document.createElement('b');
+   name.textContent=admin.name||'Administrator';
+   const username=document.createElement('p');
+   username.className='text-xs text-slate-500';
+   username.textContent='@'+(admin.username||'')+' • '+(admin.active===false?'Disabled':'Active');
+   details.append(name,username);
+   card.appendChild(details);
+   el.appendChild(card);
+ });
+}
 
 function renderStudents(){
  const el=document.getElementById('studentsTable');
@@ -1300,8 +1356,8 @@ document.getElementById('foodImagePreview').classList.add('hidden');['foodName',
 
 function openAdminSection(section){
  if(currentRole!=='admin') return false;
- const sections={menu:'adminMenuSection',history:'adminHistorySection',owners:'adminOwnersSection',students:'adminStudentsSection',service:'adminServiceSection',reports:'adminReportsSection'};
- const btns={menu:'adminMenuBtn',history:'adminHistoryBtn',owners:'adminOwnersBtn',students:'adminStudentsBtn',service:'adminServiceBtn',reports:'adminReportsBtn'};
+ const sections={menu:'adminMenuSection',history:'adminHistorySection',owners:'adminOwnersSection',students:'adminStudentsSection',admins:'adminAdminsSection',service:'adminServiceSection',reports:'adminReportsSection'};
+ const btns={menu:'adminMenuBtn',history:'adminHistoryBtn',owners:'adminOwnersBtn',students:'adminStudentsBtn',admins:'adminAdminsBtn',service:'adminServiceBtn',reports:'adminReportsBtn'};
  if(!sections[section]) section='menu';
  // Always show exactly ONE admin section at a time.
  Object.values(sections).forEach(id=>{
@@ -1323,6 +1379,7 @@ function openAdminSection(section){
  if(section==='history') renderHistory();
  if(section==='owners') renderOwners();
  if(section==='students') renderStudents();
+ if(section==='admins') renderAdmins();
  if(section==='service') renderSpecialServices();
  if(section==='reports') renderAdminReports();
  return true;
@@ -1364,6 +1421,7 @@ document.getElementById('submitReport').onclick=()=>{
 document.getElementById('adminMenuBtn').onclick=()=>openAdminSection('menu');
 
 document.getElementById('adminStudentsBtn').onclick=()=>openAdminSection('students');
+document.getElementById('adminAdminsBtn').onclick=()=>openAdminSection('admins');
 document.getElementById('addStudentBtn').onclick=()=>{
  document.getElementById('studentModal').classList.remove('hidden');
  ['studentName','studentUsername','studentPassword','studentClass'].forEach(id=>document.getElementById(id).value='');
@@ -1382,6 +1440,11 @@ document.getElementById('saveStudent').onclick=()=>{
 };
 document.getElementById('adminHistoryBtn').onclick=()=>openAdminSection('history');
 document.getElementById('adminOwnersBtn').onclick=()=>openAdminSection('owners');
+document.getElementById('addAdminBtn').onclick=()=>{
+ ['adminName','adminUsername','adminPassword'].forEach(id=>document.getElementById(id).value='');
+ document.getElementById('adminModal').classList.remove('hidden');
+};
+document.getElementById('adminModalClose').onclick=()=>document.getElementById('adminModal').classList.add('hidden');
 document.getElementById('addOwnerBtn').onclick=()=>document.getElementById('ownerModal').classList.remove('hidden');
 document.getElementById('ownerModalClose').onclick=()=>document.getElementById('ownerModal').classList.add('hidden');
 document.getElementById('saveOwner').onclick=()=>{const name=document.getElementById('ownerName').value.trim(),username=document.getElementById('ownerUsername').value.trim(),password=document.getElementById('ownerPassword').value.trim();if(!name||!username||!password){alert('Fill all owner details.');return;}if(owners.some(o=>o.username===username)){alert('Username already exists.');return;}owners.push({id:Date.now(),name,username,password,active:true});document.getElementById('ownerModal').classList.add('hidden');['ownerName','ownerUsername','ownerPassword'].forEach(id=>document.getElementById(id).value='');renderOwners();};
@@ -1401,22 +1464,22 @@ document.getElementById('saveFood').onclick=()=>{
  closeFoodModal();selectedFoodImage='';renderAdmin();renderOwner();renderMenu();
 };
 
-renderMenu();renderCart();renderOrders();renderAdmin();renderStudents();renderNotifications();renderAdminReports();updateServiceStatus();lucide.createIcons();
+renderMenu();renderCart();renderOrders();renderAdmin();renderStudents();renderAdmins();renderNotifications();renderAdminReports();updateServiceStatus();lucide.createIcons();
 </script>
 <script>
 /* ===== CampusBite patch: bug fixes + Swiggy/Zomato-style features ===== */
 const $=id=>document.getElementById(id);
 const favs=new Set(), purchaseStore=[]; let currentCat='All';
 const KEY='campusbite_v1';
-function saveState(){try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}))}catch(e){}}
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){menu.splice(0,menu.length,...s.menu);orders=s.orders;orderHistory=s.orderHistory;purchaseStore.push(...s.purchaseStore);reviews=s.reviews;reports=s.reports;students=s.students;owners=s.owners;parcelFee=s.parcelFee;specialServiceWindows=s.specialServiceWindows;notifications=s.notifications;(s.favs||[]).forEach(f=>favs.add(f));}}catch(e){}
+function saveState(){try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}))}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){menu.splice(0,menu.length,...s.menu);orders=s.orders;orderHistory=s.orderHistory;purchaseStore.push(...s.purchaseStore);reviews=s.reviews;reports=s.reports;if(Array.isArray(s.admins))admins=s.admins;students=s.students;owners=s.owners;parcelFee=s.parcelFee;specialServiceWindows=s.specialServiceWindows;notifications=s.notifications;(s.favs||[]).forEach(f=>favs.add(f));}}catch(e){}
 orders.forEach(o=>{if(!orderHistory.some(h=>h.token===o.token))orderHistory.push({...o,payment:'Campus Wallet',time:'12:20 PM'});});
 
 /* strip < > " from typed text so nothing can inject HTML */
-document.addEventListener('click',e=>{if(!e.target.closest('#saveFood,#submitReport,#submitReview,#saveStudent,#saveOwner,#addSpecialServiceBtn'))return;
- ['foodName','foodTime','reportSubject','reportToken','reportDetails','reportContact','reviewComment','studentName','studentUsername','studentClass','ownerName','ownerUsername','specialServiceName'].forEach(f=>{const i=$(f);if(i)i.value=i.value.replace(/[<>"]/g,'');});},true);
+document.addEventListener('click',e=>{if(!e.target.closest('#saveFood,#submitReport,#submitReview,#saveStudent,#saveOwner,#saveAdmin,#addSpecialServiceBtn'))return;
+ ['foodName','foodTime','reportSubject','reportToken','reportDetails','reportContact','reviewComment','studentName','studentUsername','studentClass','ownerName','ownerUsername','adminName','adminUsername','specialServiceName'].forEach(f=>{const i=$(f);if(i)i.value=i.value.replace(/[<>"]/g,'');});},true);
 
-function renderAll(){renderMenu();renderCart();renderOrders();renderAdmin();renderOwner();renderHistory();renderMyPurchases();renderNotifications();saveState();lucide.createIcons();}
+function renderAll(){renderMenu();renderCart();renderOrders();renderAdmin();renderOwner();renderHistory();renderMyPurchases();renderNotifications();renderAdmins();saveState();lucide.createIcons();}
 function removeFood(id){const x=menu.find(m=>m.id===id);if(!x||!confirm('Remove '+x.name+' from the menu?'))return;menu.splice(menu.indexOf(x),1);cart=cart.filter(c=>c.id!==id);favs.delete(id);renderAll();}
 function refundOrder(token){
  const h=orderHistory.find(o=>o.token===token);if(!h||h.status==='Refunded'||!confirm('Refund '+token+' (₹'+h.total+')?'))return;
@@ -1548,10 +1611,10 @@ function a11y(){
  document.querySelectorAll('input,select,textarea').forEach(e=>{if(!e.getAttribute('aria-label')&&!e.closest('label')&&!(e.id&&document.querySelector('label[for="'+e.id+'"]')))e.setAttribute('aria-label',e.placeholder||(e.dataset.stock||e.dataset.ownerStock?'Stock quantity':'Field'));});
  const L={cartBtn:'Open cart',notificationBtn:'Notifications'},M={'−':'Decrease quantity','+':'Increase quantity','×':'Close'};
  document.querySelectorAll('button:not([aria-label])').forEach(b=>{const t=b.textContent.trim();if(!t||t.length===1)b.setAttribute('aria-label',M[t]||L[b.id]||(b.dataset.close?'Close':'Button'));});}
-['tokenModal','reviewModal','foodModal','studentModal','ownerModal','cartDrawer'].forEach(i=>{$(i).setAttribute('role','dialog');$(i).setAttribute('aria-modal','true');});
+['tokenModal','reviewModal','foodModal','studentModal','ownerModal','adminModal','cartDrawer'].forEach(i=>{$(i).setAttribute('role','dialog');$(i).setAttribute('aria-modal','true');});
 $('loginError').setAttribute('role','alert');$('reportStatus').setAttribute('role','status');$('serviceStatus').setAttribute('aria-live','polite');
 $('skipLink').onclick=e=>{e.preventDefault();const m=document.querySelector('main:not(.hidden)');if(m){m.tabIndex=-1;m.focus();}};
-addEventListener('keydown',e=>{if(e.key!=='Escape')return;['tokenModal','reviewModal','studentModal','ownerModal','notificationPanel'].forEach(i=>$(i).classList.add('hidden'));closeFoodModal();closeCart();});
+addEventListener('keydown',e=>{if(e.key!=='Escape')return;['tokenModal','reviewModal','studentModal','ownerModal','adminModal','notificationPanel'].forEach(i=>$(i).classList.add('hidden'));closeFoodModal();closeCart();});
 let _t;new MutationObserver(()=>{clearTimeout(_t);_t=setTimeout(a11y,50);}).observe(document.body,{childList:true,subtree:true});
 a11y();renderReports();renderAdminReports();renderStudents();renderOwners();saveState();
 
@@ -1631,6 +1694,7 @@ showClosedNote();
       reports:clean(reports),
       students:stripPasswords(students),
       owners:stripPasswords(owners),
+      admins:stripPasswords(admins),
       parcelFee:Number(parcelFee)||0,
       specialServiceWindows:clean(specialServiceWindows),
       notifications:clean(notifications)
@@ -1642,7 +1706,7 @@ showClosedNote();
         myPurchases=orders.filter(order=>order.studentId===currentUser.uid);
       }
       renderMenu();renderCart();renderOrders();renderAdmin();renderOwner();renderHistory();renderMyPurchases();renderNotifications();
-      renderReports();renderAdminReports();renderStudents();renderOwners();updateServiceStatus();
+      renderReports();renderAdminReports();renderStudents();renderOwners();renderAdmins();updateServiceStatus();
       lucide.createIcons();
     }catch(e){console.error('UI refresh failed',e);}
   }
@@ -1657,6 +1721,7 @@ showClosedNote();
       if(Array.isArray(d.reports))reports=d.reports;
       if(Array.isArray(d.students))students=d.students;
       if(Array.isArray(d.owners))owners=d.owners;
+      if(Array.isArray(d.admins))admins=d.admins;
       if(typeof d.parcelFee==='number')parcelFee=d.parcelFee;
       if(Array.isArray(d.specialServiceWindows))specialServiceWindows=d.specialServiceWindows;
       if(Array.isArray(d.notifications))notifications=d.notifications;
@@ -1785,6 +1850,7 @@ showClosedNote();
   /* Admin creates a real Firebase Auth account without logging the admin out. */
   async function createPortalAccount(role,name,username,password,className){
     if(!fbAuth.currentUser||currentRole!=='admin')throw new Error('ADMIN_ONLY');
+    if(!['student','owner','admin'].includes(role))throw new Error('INVALID_ROLE');
     if(password.length<6)throw new Error('PASSWORD_SHORT');
     const email=username.toLowerCase().replace(/\s+/g,'')+'@campusbite.app';
     const secondaryName='CampusBiteAccountCreator';
@@ -1839,6 +1905,34 @@ showClosedNote();
     }finally{btn.disabled=false;btn.textContent='Add Owner';}
   }
 
+  async function adminAddAdmin(){
+    const name=$('adminName').value.trim(),username=$('adminUsername').value.trim(),password=$('adminPassword').value;
+    if(!name||!username||!password){alert('Please enter the administrator name, username and password.');return;}
+    if(password.length<6){alert('Firebase passwords must contain at least 6 characters.');return;}
+    const normalizedUsername=username.toLowerCase().replace(/\s+/g,'');
+    if(admins.some(admin=>String(admin.username||'').toLowerCase().replace(/\s+/g,'')===normalizedUsername)){
+      alert('An administrator with that username already exists.');
+      return;
+    }
+    const btn=$('saveAdmin');btn.disabled=true;btn.textContent='Creating account…';
+    try{
+      const profile=await createPortalAccount('admin',name,username,password,'');
+      const safeProfile={...profile};delete safeProfile.password;admins.push(safeProfile);
+      renderAdmins();
+      $('adminModal').classList.add('hidden');
+      ['adminName','adminUsername','adminPassword'].forEach(id=>$(id).value='');
+      if(!await window.saveState(true)){
+        alert('Admin account created, but its listing could not be synced. Please reload and try syncing again.');
+        return;
+      }
+      alert('Administrator account created. Login ID: '+username);
+    }catch(error){
+      if(error.code==='auth/email-already-in-use')alert('That username is already registered in Firebase Authentication.');
+      else if(error.message==='PASSWORD_SHORT')alert('Password must be at least 6 characters.');
+      else alert('Could not create administrator: '+(error.message||'Unknown error'));
+    }finally{btn.disabled=false;btn.textContent='Create Admin';}
+  }
+
   async function disablePortalAccount(profile,collection){
     if(!profile?.uid||currentRole!=='admin')return;
     try{await userRef(profile.uid).set({active:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){console.error(e);}
@@ -1848,6 +1942,7 @@ showClosedNote();
   $('loginPass').onkeydown=e=>{if(e.key==='Enter')firebaseLogin();};
   $('saveStudent').onclick=adminAddStudent;
   $('saveOwner').onclick=adminAddOwner;
+  $('saveAdmin').onclick=adminAddAdmin;
 
   const originalRemoveStudent=window.removeStudent;
   window.removeStudent=async function(id){
@@ -1914,7 +2009,7 @@ showClosedNote();
 
   function getAuthEmail(input){
     const value = String(input || '').trim();
-    return value.includes('@') ? value : value.toLowerCase() + '@campusbite.app';
+    return value.includes('@') ? value : value.toLowerCase().replace(/\s+/g, '') + '@campusbite.app';
   }
 
   function normalizeFoodItem(raw, fallbackOwnerId = '', fallbackShopId = DEFAULT_SHOP.id, fallbackShopName = DEFAULT_SHOP.name){
@@ -2094,7 +2189,6 @@ showClosedNote();
     const loginInput = document.getElementById('loginUser').value.trim();
     const password = document.getElementById('loginPass').value;
     const errorBox = document.getElementById('loginError');
-    const role = loginRole || 'student';
     if(!loginInput || !password){
       errorBox.textContent = 'Enter your login ID and password.';
       errorBox.classList.remove('hidden');
@@ -2116,9 +2210,9 @@ showClosedNote();
         await auth.signOut();
         throw new Error('ACCOUNT_DISABLED');
       }
-      if(profile.role !== role){
+      if(!['student', 'owner', 'admin'].includes(profile.role)){
         await auth.signOut();
-        throw new Error('WRONG_PORTAL');
+        throw new Error('INVALID_ROLE');
       }
       const safeProfile = await ensureUserProfile(cred.user.uid, profile, email);
       currentRole = safeProfile.role;
@@ -2156,14 +2250,20 @@ showClosedNote();
       let msg = 'Invalid login details.';
       if(err.message === 'PROFILE_MISSING') msg = 'Account exists, but its CampusBite profile is missing.';
       if(err.message === 'ACCOUNT_DISABLED') msg = 'This CampusBite account is disabled.';
-      if(err.message === 'WRONG_PORTAL') msg = 'This account belongs to a different portal.';
-      if(err.code === 'auth/invalid-credential') msg = 'Invalid login details.';
+      if(err.message === 'INVALID_ROLE') msg = 'This account has no valid CampusBite role. Contact your administrator.';
+      if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+        msg = 'Email/login ID or password is incorrect. Admin accounts must exist in Firebase Authentication.';
+      }
+      if(err.code === 'auth/network-request-failed') msg = 'Network error. Check your connection and try again.';
+      if(err.code === 'permission-denied') msg = 'Could not read your CampusBite profile. Check the Firestore access rules.';
+      if(err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
       errorBox.textContent = msg;
       errorBox.classList.remove('hidden');
+      console.error('Firebase sign-in failed:', err);
       setStatus(false, 'Authentication required');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Continue as ' + ({ student: 'Student Login', owner: 'Shop Owner Login', admin: 'Admin Login' }[role]);
+      btn.textContent = 'Continue as ' + ({ student: 'Student Login', owner: 'Shop Owner Login', admin: 'Admin Login' }[loginRole || 'student']);
     }
   }
 
