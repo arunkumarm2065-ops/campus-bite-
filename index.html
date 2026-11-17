@@ -2629,6 +2629,10 @@ showClosedNote();
         await auth.signOut();
         throw new Error('INVALID_ROLE');
       }
+      if(profile.role !== loginRole){
+        await auth.signOut();
+        throw new Error('WRONG_PORTAL');
+      }
       const safeProfile = await ensureUserProfile(cred.user.uid, profile, email);
       currentRole = safeProfile.role;
       currentUser = {
@@ -2666,6 +2670,7 @@ showClosedNote();
       if(err.message === 'PROFILE_MISSING') msg = 'Account exists, but its CampusBite profile is missing.';
       if(err.message === 'ACCOUNT_DISABLED') msg = 'This CampusBite account is disabled.';
       if(err.message === 'INVALID_ROLE') msg = 'This account has no valid CampusBite role. Contact your administrator.';
+      if(err.message === 'WRONG_PORTAL') msg = 'This account belongs to a different portal. Select the matching portal and try again.';
       if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
         msg = 'Email/login ID or password is incorrect. Admin accounts must exist in Firebase Authentication.';
       }
@@ -3030,6 +3035,8 @@ showClosedNote();
 </script>
 <link rel="stylesheet" href="theme-override.css">
 <script src="animations.js"></script>
+<script src="mascot.js"></script>
 <script src="theme-override.js"></script>
+<script src="role-access.js"></script>
 </body>
 </html>

@@ -234,9 +234,52 @@ body::before {
 @keyframes cbHintPulse { 50% { opacity: .45; } }
 .cb-scene.cb-hint-off .cb-hint { animation: none; opacity: 0; transition: opacity .4s; }
 
+/* ---------- 11. Mobile pull-to-refresh + menu swipe feedback ---------- */
+.cb-ptr {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate3d(-50%, -64px, 0);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, .25);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s ease;
+  will-change: transform, opacity;
+}
+.cb-ptr.cb-ptr-active { opacity: 1; }
+.cb-ptr-icon {
+  display: inline-block;
+  transition: transform .2s ease;
+}
+.cb-ptr.cb-ptr-ready .cb-ptr-icon { transform: rotate(180deg); }
+.cb-ptr.cb-ptr-spin .cb-ptr-icon { animation: cbPtrSpin .7s linear infinite; }
+@keyframes cbPtrSpin { to { transform: rotate(360deg); } }
+
+.cb-menu-slide-left { animation: cbSlideL .28s var(--cb-ease); }
+.cb-menu-slide-right { animation: cbSlideR .28s var(--cb-ease); }
+@keyframes cbSlideL {
+  from { opacity: .4; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cbSlideR {
+  from { opacity: .4; transform: translateX(-24px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* ---------- Motion off: OS setting or CampusBiteMotion.setEnabled(false) ---------- */
 @media (prefers-reduced-motion: reduce) {
   .cb-enter, .cb-view-in > *, .cb-wiggle, .cb-flash, .cb-heart-pop, .cb-shake, .cb-check, .cb-rip::after,
+  .cb-menu-slide-left, .cb-menu-slide-right, .cb-ptr-spin .cb-ptr-icon,
   .cb-floater > span { animation: none !important; }
   .food-card { transform: none !important; }
   .cb-floaters, .cb-fly, .cb-p, .cb-ring, .cb-ff, .cb-hint { display: none !important; }
@@ -244,6 +287,7 @@ body::before {
 }
 html.cb-off .cb-enter, html.cb-off .cb-view-in > *, html.cb-off .cb-wiggle, html.cb-off .cb-flash,
 html.cb-off .cb-heart-pop, html.cb-off .cb-shake, html.cb-off .cb-check, html.cb-off .cb-rip::after,
+html.cb-off .cb-menu-slide-left, html.cb-off .cb-menu-slide-right, html.cb-off .cb-ptr-spin .cb-ptr-icon,
 html.cb-off .cb-floater > span { animation: none !important; }
 html.cb-off .food-card { transform: none !important; }
 html.cb-off .cb-floaters, html.cb-off .cb-ff, html.cb-off .cb-hint { display: none !important; }

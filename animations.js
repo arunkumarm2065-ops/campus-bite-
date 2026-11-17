@@ -63,6 +63,184 @@
   }
 
   /* ------------------------------------------------------------------
+     Mobile gestures: pull to refresh and swipe menu categories
+     ------------------------------------------------------------------ */
+  (function initMobileGestures() {
+    var menu = $('menu');
+    var ptr = doc.createElement('div');
+    ptr.className = 'cb-ptr';
+    ptr.setAttribute('role', 'status');
+    ptr.setAttribute('aria-live', 'polite');
+    ptr.innerHTML = '<span class="cb-ptr-icon" aria-hidden="true">↻</span><span class="cb-ptr-label">Pull to refresh</span>';
+    doc.body.appendChild(ptr);
+
+    var startX = 0, startY = 0, deltaX = 0, deltaY = 0;
+    var gestureActive = false, gestureAxis = null, menuSwipe = false, refreshPull = false, refreshing = false;
+    var refreshTimer = 0;
+    var pullThreshold = 76, swipeThreshold = 64;
+
+    function isLoggedIn() {
+      var loginView = $('loginView'), logoutBtn = $('logoutBtn');
+      return loginView && loginView.classList.contains('hidden') &&
+        logoutBtn && !logoutBtn.classList.contains('hidden');
+    }
+
+    function isInteractive(target) {
+      return !!(target && target.closest &&
+        target.closest('button, input, select, textarea, a, [contenteditable="true"]'));
+    }
+
+    function isAtTop() {
+      return window.scrollY <= 0 && doc.documentElement.scrollTop <= 0;
+    }
+
+    function hasOpenModal() {
+      return Array.prototype.some.call(doc.querySelectorAll('.modal-backdrop:not(.hidden)'), function (backdrop) {
+        return !backdrop.closest('.hidden');
+      });
+    }
+
+    function hidePullIndicator() {
+      ptr.classList.remove('cb-ptr-active', 'cb-ptr-ready', 'cb-ptr-spin');
+      ptr.style.transform = '';
+      ptr.style.opacity = '';
+    }
+
+    function clearGesture() {
+      gestureActive = false;
+      gestureAxis = null;
+      menuSwipe = false;
+      refreshPull = false;
+      deltaX = 0;
+      deltaY = 0;
+    }
+
+    function renderCategorySwipe(direction) {
+      if (!menu || !menu.offsetParent) return;
+      var categories = Array.prototype.slice.call(doc.querySelectorAll('.cat-btn'));
+      if (categories.length < 2) return;
+      var current = categories.findIndex(function (button) { return button.classList.contains('bg-slate-900'); });
+      if (current < 0) current = 0;
+      var next = (current + direction + categories.length) % categories.length;
+      if (on()) retrigger(menu, direction > 0 ? 'cb-menu-slide-left' : 'cb-menu-slide-right', 350);
+      categories[next].click();
+    }
+
+    async function refreshApp() {
+      var hasFirebaseUser = false;
+      if (window.firebase && typeof window.firebase.auth === 'function') {
+        hasFirebaseUser = !!window.firebase.auth().currentUser;
+      }
+      if (hasFirebaseUser && typeof window.campusBiteStartSync === 'function') {
+        await window.campusBiteStartSync();
+      } else if (typeof window.renderAll === 'function') {
+        window.renderAll();
+      } else if (typeof window.renderMenu === 'function') {
+        window.renderMenu();
+      }
+    }
+
+    async function finishRefresh() {
+      if (refreshing) return;
+      refreshing = true;
+      var refreshStartedAt = Date.now();
+      ptr.classList.remove('cb-ptr-ready');
+      ptr.classList.add('cb-ptr-active', 'cb-ptr-spin');
+      ptr.style.transform = 'translate3d(-50%, 8px, 0)';
+      ptr.querySelector('.cb-ptr-label').textContent = 'Refreshing…';
+      try {
+        await refreshApp();
+        var remainingSpinnerTime = 350 - (Date.now() - refreshStartedAt);
+        if (remainingSpinnerTime > 0) {
+          await new Promise(function (resolve) { window.setTimeout(resolve, remainingSpinnerTime); });
+        }
+        ptr.querySelector('.cb-ptr-label').textContent = 'Updated';
+      } catch (error) {
+        console.error('Pull-to-refresh failed:', error);
+        ptr.querySelector('.cb-ptr-label').textContent = 'Refresh failed';
+      } finally {
+        ptr.classList.remove('cb-ptr-spin');
+        refreshTimer = window.setTimeout(function () {
+          hidePullIndicator();
+          refreshing = false;
+          refreshTimer = 0;
+        }, 700);
+      }
+    }
+
+    doc.addEventListener('touchstart', function (e) {
+      if (refreshing || e.touches.length !== 1 || !isLoggedIn()) {
+        clearGesture();
+        return;
+      }
+      var target = e.target;
+      var drawer = $('cartDrawer');
+      if ((drawer && !drawer.classList.contains('hidden')) ||
+          hasOpenModal()) {
+        clearGesture();
+        return;
+      }
+      var interactive = isInteractive(target);
+      menuSwipe = !!(menu && menu.offsetParent && menu.contains(target) && !interactive);
+      refreshPull = isAtTop() && !interactive;
+      if (!menuSwipe && !refreshPull) {
+        clearGesture();
+        return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      deltaX = 0;
+      deltaY = 0;
+      gestureAxis = null;
+      gestureActive = true;
+    }, { passive: true });
+
+    doc.addEventListener('touchmove', function (e) {
+      if (!gestureActive || e.touches.length !== 1) return;
+      deltaX = e.touches[0].clientX - startX;
+      deltaY = e.touches[0].clientY - startY;
+      if (!gestureAxis && Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 8) {
+        gestureAxis = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+      }
+      if (gestureAxis === 'vertical' && refreshPull && deltaY > 0 && isAtTop()) {
+        if (e.cancelable) e.preventDefault();
+        var distance = Math.min(deltaY, 112);
+        ptr.classList.add('cb-ptr-active');
+        ptr.style.transform = 'translate3d(-50%, ' + (distance - 64) + 'px, 0)';
+        ptr.style.opacity = String(Math.min(1, distance / 48));
+        var ready = distance >= pullThreshold;
+        ptr.classList.toggle('cb-ptr-ready', ready);
+        ptr.querySelector('.cb-ptr-label').textContent = ready ? 'Release to refresh' : 'Pull to refresh';
+      }
+    }, { passive: false });
+
+    doc.addEventListener('touchend', function (e) {
+      if (!gestureActive) return;
+      var touch = e.changedTouches && e.changedTouches[0];
+      if (touch) {
+        deltaX = touch.clientX - startX;
+        deltaY = touch.clientY - startY;
+      }
+      var shouldRefresh = gestureAxis === 'vertical' && refreshPull && deltaY >= pullThreshold && isAtTop();
+      var shouldSwipeMenu = gestureAxis === 'horizontal' && menuSwipe && Math.abs(deltaX) >= swipeThreshold;
+      var swipeDirection = deltaX < 0 ? 1 : -1;
+      clearGesture();
+      if (shouldSwipeMenu) renderCategorySwipe(swipeDirection);
+      if (shouldRefresh) finishRefresh();
+      else if (!refreshing) hidePullIndicator();
+    }, { passive: true });
+
+    doc.addEventListener('touchcancel', function () {
+      clearGesture();
+      if (!refreshing) hidePullIndicator();
+    }, { passive: true });
+
+    window.addEventListener('scroll', function () {
+      if (!isAtTop() && !refreshing) hidePullIndicator();
+    }, { passive: true });
+  })();
+
+  /* ------------------------------------------------------------------
      Particles: hearts, emoji sparks (Web Animations API, self-cleaning)
      ------------------------------------------------------------------ */
   function burst(x, y, chars, count, spread) {
