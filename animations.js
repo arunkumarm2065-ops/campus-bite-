@@ -199,23 +199,33 @@
   }, { passive: true });
 
   /* ------------------------------------------------------------------
-     4. Pointer effects: card tilt + hero parallax (mouse only, rAF-throttled)
+     4. Pointer effects: card tilt + hero parallax (mouse and touch)
      ------------------------------------------------------------------ */
   var tiltEl = null, raf = 0, lastEv = null;
-  function resetTilt(c) { ['--cb-rx', '--cb-ry', '--cb-gx', '--cb-gy'].forEach(function (p) { c.style.removeProperty(p); }); }
+  function resetTilt(c) {
+    if (!c) return;
+    c.classList.remove('cb-touching');
+    ['--cb-rx', '--cb-ry', '--cb-gx', '--cb-gy'].forEach(function (p) { c.style.removeProperty(p); });
+  }
   function frame() {
     raf = 0;
     var e = lastEv; if (!e) return;
     if (tiltEl) {
-      var r = tiltEl.getBoundingClientRect(), px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
-      tiltEl.style.setProperty('--cb-ry', ((px - .5) * 10).toFixed(2) + 'deg');
-      tiltEl.style.setProperty('--cb-rx', ((.5 - py) * 8).toFixed(2) + 'deg');
-      tiltEl.style.setProperty('--cb-gx', (px * 100).toFixed(1) + '%');
-      tiltEl.style.setProperty('--cb-gy', (py * 100).toFixed(1) + '%');
+      var r = tiltEl.getBoundingClientRect();
+      if (r.width && r.height) {
+        var px = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        var py = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+        tiltEl.style.setProperty('--cb-ry', ((px - .5) * 12).toFixed(2) + 'deg');
+        tiltEl.style.setProperty('--cb-rx', ((.5 - py) * 10).toFixed(2) + 'deg');
+        tiltEl.style.setProperty('--cb-gx', (px * 100).toFixed(1) + '%');
+        tiltEl.style.setProperty('--cb-gy', (py * 100).toFixed(1) + '%');
+      }
     }
     var hero = heroEl();
     if (hero && hero.offsetParent) {
-      var hr = hero.getBoundingClientRect(), nx = (e.clientX - hr.left) / hr.width - .5, ny = (e.clientY - hr.top) / hr.height - .5;
+      var hr = hero.getBoundingClientRect();
+      var nx = (e.clientX - hr.left) / hr.width - .5;
+      var ny = (e.clientY - hr.top) / hr.height - .5;
       if (Math.abs(nx) < .9 && Math.abs(ny) < 1.6) {
         hero.querySelectorAll('.cb-floater').forEach(function (f) {
           var d = parseFloat(f.getAttribute('data-depth')) || 20;
@@ -224,14 +234,43 @@
       }
     }
   }
-  doc.addEventListener('pointermove', function (e) {
-    if (e.pointerType !== 'mouse' || !on()) return;
+
+  doc.addEventListener('pointerdown', function (e) {
+    if (!on() || e.pointerType === 'mouse') return;
     var card = e.target.closest ? e.target.closest('.food-card') : null;
-    if (tiltEl && tiltEl !== card) resetTilt(tiltEl);
-    tiltEl = card; lastEv = e;
+    if (card) {
+      if (tiltEl && tiltEl !== card) resetTilt(tiltEl);
+      tiltEl = card;
+      tiltEl.classList.add('cb-touching');
+      lastEv = e;
+      if (!raf) raf = requestAnimationFrame(frame);
+    }
+    if (card && !e.target.closest('button') && e.target.closest('.relative')) {
+      burst(e.clientX, e.clientY, ['✨', '🧡'], 4, 38);
+    }
+  }, { passive: true });
+
+  doc.addEventListener('pointermove', function (e) {
+    if (!on()) return;
+    var card = e.target.closest ? e.target.closest('.food-card') : null;
+    if (e.pointerType === 'mouse') {
+      if (tiltEl && tiltEl !== card) resetTilt(tiltEl);
+      tiltEl = card;
+    } else if (tiltEl && card !== tiltEl) {
+      resetTilt(tiltEl);
+      tiltEl = null;
+      return;
+    }
+    lastEv = e;
     if (!raf) raf = requestAnimationFrame(frame);
   }, { passive: true });
-  root.addEventListener('mouseleave', function () { if (tiltEl) { resetTilt(tiltEl); tiltEl = null; } });
+
+  function clearTouchTilt() {
+    if (tiltEl) { resetTilt(tiltEl); tiltEl = null; }
+  }
+  doc.addEventListener('pointerup', clearTouchTilt, { passive: true });
+  doc.addEventListener('pointercancel', clearTouchTilt, { passive: true });
+  root.addEventListener('mouseleave', clearTouchTilt);
 
   /* ------------------------------------------------------------------
      5. Screen / tab transitions + count-up numbers
@@ -550,6 +589,85 @@
   mountLoginScene();
 
   /* ------------------------------------------------------------------
+     11A. Haptic feedback (supported mobile browsers)
+     ------------------------------------------------------------------ */
+  var HAPTICS = {
+    tap: 12,
+    heart: [12, 30, 18],
+    success: [18, 40, 28],
+    warning: [30, 40, 30],
+    error: [45, 35, 45, 35, 60]
+  };
+  function vibe(pattern) {
+    if (!on() || !navigator.vibrate) return;
+    try { navigator.vibrate(pattern); } catch (e) {}
+  }
+
+  doc.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+
+    var favBtn = t.closest('[aria-label="Favourite"]');
+    if (favBtn) { vibe(HAPTICS.heart); return; }
+
+    var cartAction = t.closest('#menu button, #cartItems button');
+    if (cartAction && !cartAction.disabled) {
+      vibe(HAPTICS.tap);
+      return;
+    }
+
+    if (t.closest('.cat-btn, .student-order-filter, .admin-section-btn, header button')) {
+      vibe(HAPTICS.tap);
+      return;
+    }
+
+    if (t.closest('.review-star')) {
+      vibe(15);
+      return;
+    }
+
+    var actionBtn = t.closest('#placeOrder, [data-ready-index], #saveFood, #saveParcelFee, #submitReview, #submitReport, #saveStudent, #saveOwner, #saveAdmin, #addSpecialServiceBtn, button[onclick*="completeOrder"]');
+    if (actionBtn && !actionBtn.disabled) {
+      vibe(HAPTICS.success);
+      return;
+    }
+
+    var dangerBtn = t.closest('button');
+    if (dangerBtn && /cancel|refund|remove/i.test(dangerBtn.textContent)) {
+      vibe(HAPTICS.warning);
+    }
+  }, true);
+
+  var loginErrEl = $('loginError');
+  if (loginErrEl) {
+    new MutationObserver(function () {
+      if (!loginErrEl.classList.contains('hidden') && loginErrEl.textContent.trim()) {
+        vibe(HAPTICS.error);
+      }
+    }).observe(loginErrEl, { attributes: true, attributeFilter: ['class'], childList: true });
+  }
+
+  var tokenModalEl = $('tokenModal');
+  if (tokenModalEl) {
+    var wasTokenHidden = tokenModalEl.classList.contains('hidden');
+    new MutationObserver(function () {
+      var isTokenHidden = tokenModalEl.classList.contains('hidden');
+      if (wasTokenHidden && !isTokenHidden) vibe([25, 45, 35, 45, 50]);
+      wasTokenHidden = isTokenHidden;
+    }).observe(tokenModalEl, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  var notificationList = $('notificationList');
+  if (notificationList) {
+    var latestNotification = notificationList.firstElementChild ? notificationList.firstElementChild.textContent.trim() : '';
+    new MutationObserver(function () {
+      var nextNotification = notificationList.firstElementChild ? notificationList.firstElementChild.textContent.trim() : '';
+      if (nextNotification && nextNotification !== latestNotification) vibe(HAPTICS.tap);
+      latestNotification = nextNotification;
+    }).observe(notificationList, { childList: true, subtree: true, characterData: true });
+  }
+
+  /* ------------------------------------------------------------------
      Public switch
      ------------------------------------------------------------------ */
   window.CampusBiteMotion = {
@@ -560,6 +678,7 @@
       root.classList.toggle('cb-off', userOff);
       syncScene();
     },
-    confetti: confetti
+    confetti: confetti,
+    vibe: vibe
   };
 })();

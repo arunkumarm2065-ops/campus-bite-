@@ -869,6 +869,84 @@ function closeCart(){
    cartCloseTimer=null;
  },230);
 }
+
+/* Swipe right on the cart drawer to close it on touch devices. */
+(function initCartSwipe(){
+ const drawer=document.getElementById('cartDrawer');
+ const panel=drawer&&drawer.querySelector('aside');
+ if(!drawer||!panel)return;
+
+ let startX=0,startY=0,currentX=0,dragging=false,axis=null,resetTimer=0;
+ let originalTransition='',originalTransform='';
+
+ function resetPanel(animateBack){
+   dragging=false;
+   axis=null;
+   currentX=0;
+   clearTimeout(resetTimer);
+   if(animateBack){
+     panel.style.transition='transform .22s ease-out';
+     panel.style.transform='translateX(0)';
+     resetTimer=window.setTimeout(function(){
+       panel.style.transition=originalTransition;
+       panel.style.transform=originalTransform;
+       resetTimer=0;
+     },240);
+   }else{
+     panel.style.transition=originalTransition;
+     panel.style.transform=originalTransform;
+   }
+ }
+
+ panel.addEventListener('touchstart',function(e){
+   if(e.touches.length!==1){
+     if(dragging)resetPanel(true);
+     return;
+   }
+   clearTimeout(resetTimer);
+   originalTransition=panel.style.transition;
+   originalTransform=panel.style.transform;
+   startX=e.touches[0].clientX;
+   startY=e.touches[0].clientY;
+   currentX=0;
+   axis=null;
+   dragging=true;
+   panel.style.transition='none';
+ },{passive:true});
+
+ panel.addEventListener('touchmove',function(e){
+   if(!dragging)return;
+   if(e.touches.length!==1){
+     resetPanel(true);
+     return;
+   }
+   const dx=e.touches[0].clientX-startX;
+   const dy=e.touches[0].clientY-startY;
+   if(!axis&&Math.max(Math.abs(dx),Math.abs(dy))>8){
+     axis=Math.abs(dx)>Math.abs(dy)?'horizontal':'vertical';
+   }
+   if(axis==='vertical'){
+     resetPanel(false);
+     return;
+   }
+   if(axis==='horizontal'&&dx>0){
+     currentX=dx;
+     panel.style.transform='translateX('+dx+'px)';
+   }
+ },{passive:true});
+
+ panel.addEventListener('touchend',function(){
+   if(!dragging)return;
+   const shouldClose=axis==='horizontal'&&currentX>90;
+   resetPanel(!shouldClose);
+   if(shouldClose)closeCart();
+ },{passive:true});
+
+ panel.addEventListener('touchcancel',function(){
+   if(dragging)resetPanel(true);
+ },{passive:true});
+})();
+
 function renderMyPurchases(){
  const el=document.getElementById('myPurchases'), empty=document.getElementById('noPurchases');
  if(!el||!empty)return;
@@ -988,7 +1066,7 @@ function updateReviewStars(){
 function closeReview(){document.getElementById('reviewModal').classList.add('hidden');}
 
 async function cancelOrderByOwner(orderId){
-  if(!auth || !auth.currentUser || currentRole !== 'owner'){
+  if(currentRole !== 'owner'){
     alert('Only the shop owner can cancel an order.');
     return;
   }
@@ -997,8 +1075,13 @@ async function cancelOrderByOwner(orderId){
     alert('Order not found. Please refresh and try again.');
     return;
   }
+  const actingUserId = (typeof auth !== 'undefined' && auth && auth.currentUser ? auth.currentUser.uid : null) || currentUser?.uid || currentUser?.username || 'local-owner';
   const assignedShopId = currentUser?.shopId || DEFAULT_SHOP.id;
-  const canCancel = String(order.shopId || '') === String(assignedShopId) || String(order.ownerId || '') === String(auth.currentUser.uid);
+  const orderShopId = String(order.shopId || '');
+  const orderOwnerId = String(order.ownerId || '');
+  const sameShop = !orderShopId || !assignedShopId || orderShopId === String(assignedShopId);
+  const sameOwner = !orderOwnerId || !actingUserId || orderOwnerId === String(actingUserId);
+  const canCancel = sameShop || sameOwner;
   if(!canCancel){
     alert('You can only cancel orders from your own shop.');
     return;
@@ -1010,57 +1093,74 @@ async function cancelOrderByOwner(orderId){
   const reason = window.prompt('Describe why this order is being cancelled:', 'Food unavailable');
   if(reason === null){ return; }
   const reasonText = String(reason || '').trim() || 'Food unavailable';
-  const orderRef = db.collection('orders').doc(String(order.id || ''));
+  const hasFirebase = typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' && db;
+  const orderRef = hasFirebase ? db.collection('orders').doc(String(order.id || order.token || '')) : null;
   try {
-    await db.runTransaction(async transaction => {
-      const snapshot = await transaction.get(orderRef);
-      if(!snapshot.exists){ throw new Error('Order not found in Firestore.'); }
-      const currentData = snapshot.data() || {};
-      const currentStatus = String(currentData.status || 'Preparing');
-      if(['Cancelled','Refunded'].includes(currentStatus)){
-        throw new Error('This order has already been cancelled or refunded.');
-      }
-      const currentShopId = currentUser?.shopId || DEFAULT_SHOP.id;
-      const isOwnerMatch = String(currentData.shopId || '') === String(currentShopId) || String(currentData.ownerId || '') === String(auth.currentUser.uid);
-      if(!isOwnerMatch){
-        throw new Error('You can only cancel orders from your own shop.');
-      }
-      const restoreFlag = currentData.stockRestored === true;
-      const updatedData = {
-        status: 'Cancelled',
-        cancelReason: reasonText,
-        cancelledBy: auth.currentUser.uid,
-        cancelledByRole: 'owner',
-        cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        stockRestored: restoreFlag || true
-      };
-      if(!restoreFlag){
-        const stockItems = Array.isArray(currentData.items) ? currentData.items : [];
-        stockItems.forEach(item => {
-          const foodId = String(item.foodId || item.id || '');
-          const quantity = Number(item.quantity || 0);
-          if(!foodId || quantity <= 0) return;
-          const food = menu.find(entry => String(entry.id) === String(foodId));
-          if(food){
-            food.qty = Math.max(0, Number(food.qty || 0) + quantity);
-            food.stock = food.qty;
-          }
-        });
-      }
-      transaction.update(orderRef, updatedData);
-      transaction.set(db.collection('campusbite').doc('state'), {
-        lastOrderAction: 'cancelled-order',
-        lastOrderId: snapshot.id,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: auth.currentUser.uid
-      }, { merge: true });
-    });
+    if(orderRef){
+      await db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(orderRef);
+        if(!snapshot.exists){ throw new Error('Order not found in Firestore.'); }
+        const currentData = snapshot.data() || {};
+        const currentStatus = String(currentData.status || 'Preparing');
+        if(['Cancelled','Refunded'].includes(currentStatus)){
+          throw new Error('This order has already been cancelled or refunded.');
+        }
+        const currentShopId = currentUser?.shopId || DEFAULT_SHOP.id;
+        const isOwnerMatch = String(currentData.shopId || '') === String(currentShopId) || String(currentData.ownerId || '') === String(actingUserId);
+        if(!isOwnerMatch){
+          throw new Error('You can only cancel orders from your own shop.');
+        }
+        const restoreFlag = currentData.stockRestored === true;
+        const updatedData = {
+          status: 'Cancelled',
+          cancelReason: reasonText,
+          cancelledBy: actingUserId,
+          cancelledByRole: 'owner',
+          cancelledAt: typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+          updatedAt: typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+          stockRestored: restoreFlag || true
+        };
+        if(!restoreFlag){
+          const stockItems = Array.isArray(currentData.items) ? currentData.items : [];
+          stockItems.forEach(item => {
+            const foodId = String(item.foodId || item.id || '');
+            const quantity = Number(item.quantity || 0);
+            if(!foodId || quantity <= 0) return;
+            const food = menu.find(entry => String(entry.id) === String(foodId));
+            if(food){
+              food.qty = Math.max(0, Number(food.qty || 0) + quantity);
+              food.stock = food.qty;
+            }
+          });
+        }
+        transaction.update(orderRef, updatedData);
+        if(typeof db !== 'undefined' && db && typeof firebase !== 'undefined' && firebase.firestore){
+          transaction.set(db.collection('campusbite').doc('state'), {
+            lastOrderAction: 'cancelled-order',
+            lastOrderId: snapshot.id,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: actingUserId
+          }, { merge: true });
+        }
+      });
+    } else {
+      const foodItems = Array.isArray(order.itemDetails) ? order.itemDetails : Array.isArray(order.items) ? order.items : [];
+      foodItems.forEach(item => {
+        const foodId = String(item.foodId || item.id || item.FoodId || '');
+        const quantity = Number(item.quantity || item.qty || 0);
+        if(!foodId || quantity <= 0) return;
+        const food = menu.find(entry => String(entry.id) === String(foodId));
+        if(food){
+          food.qty = Math.max(0, Number(food.qty || 0) + quantity);
+          food.stock = food.qty;
+        }
+      });
+    }
     const orderIndex = orders.findIndex(item => String(item.id) === String(order.id) || String(item.token) === String(order.token));
     if(orderIndex >= 0){
       orders[orderIndex].status = 'Cancelled';
       orders[orderIndex].cancelReason = reasonText;
-      orders[orderIndex].cancelledBy = auth.currentUser.uid;
+      orders[orderIndex].cancelledBy = actingUserId;
       orders[orderIndex].cancelledByRole = 'owner';
       orders[orderIndex].cancelledAt = new Date();
       orders[orderIndex].stockRestored = true;
@@ -1070,27 +1170,31 @@ async function cancelOrderByOwner(orderId){
     if(myOrderIndex >= 0){
       myPurchases[myOrderIndex].status = 'Cancelled';
       myPurchases[myOrderIndex].cancelReason = reasonText;
-      myPurchases[myOrderIndex].cancelledBy = auth.currentUser.uid;
+      myPurchases[myOrderIndex].cancelledBy = actingUserId;
       myPurchases[myOrderIndex].cancelledByRole = 'owner';
       myPurchases[myOrderIndex].cancelledAt = new Date();
       myPurchases[myOrderIndex].stockRestored = true;
       myPurchases[myOrderIndex].updatedAt = new Date();
     }
-    await createOrderCancellationNotification({ ...order, studentId: order.studentId, token: order.token, shopName: order.shopName || DEFAULT_SHOP.name }, reasonText);
-    await window.saveState(true);
+    if (typeof createOrderCancellationNotification === 'function') {
+      await createOrderCancellationNotification({ ...order, studentId: order.studentId, token: order.token, shopName: order.shopName || DEFAULT_SHOP.name }, reasonText);
+    }
+    if (typeof window.saveState === 'function') {
+      await window.saveState(true);
+    }
     renderAll();
-    setStatus(true, 'Order cancelled and stock restored');
+    if (typeof setStatus === 'function') setStatus(true, 'Order cancelled and stock restored');
     alert('Order ' + (order.token || 'selected order') + ' was cancelled successfully.');
   } catch (error) {
     console.error('Cancel order failed:', error);
     const message = error.message || 'Unable to cancel this order right now.';
     alert(message);
-    setStatus(false, 'Cancel failed');
+    if (typeof setStatus === 'function') setStatus(false, 'Cancel failed');
   }
 }
 
 window.completeOrder = async function(orderKey){
-  if(!auth?.currentUser || !['owner','admin'].includes(currentRole)){
+  if(!['owner','admin'].includes(currentRole)){
     alert('Only shopkeeper or admin can complete orders.');
     return;
   }
@@ -1106,30 +1210,38 @@ window.completeOrder = async function(orderKey){
     alert('Only Ready orders can be completed.');
     return;
   }
+  const actingUserId = (typeof auth !== 'undefined' && auth && auth.currentUser ? auth.currentUser.uid : null) || currentUser?.uid || currentUser?.username || 'local-user';
   if(currentRole === 'owner'){
     const shopId = currentUser?.shopId || DEFAULT_SHOP.id;
-    if(String(order.shopId || '') !== String(shopId) && String(order.ownerId || '') !== String(auth.currentUser.uid)){
+    const orderShopId = String(order.shopId || '');
+    const orderOwnerId = String(order.ownerId || '');
+    const sameShop = !orderShopId || !shopId || orderShopId === String(shopId);
+    const sameOwner = !orderOwnerId || !actingUserId || orderOwnerId === String(actingUserId);
+    if(!(sameShop || sameOwner)){
       alert('You can only complete your own shop orders.');
       return;
     }
   }
   try {
-    const orderRef = db.collection('orders').doc(String(order.id));
-    await db.runTransaction(async transaction => {
-      const snapshot = await transaction.get(orderRef);
-      if(!snapshot.exists){ throw new Error('Order not found in Firestore.'); }
-      const data = snapshot.data() || {};
-      if(data.status !== 'Ready'){
-        throw new Error('This order is no longer Ready.');
-      }
-      transaction.update(orderRef, {
-        status: 'Completed',
-        completedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        completedBy: auth.currentUser.uid,
-        completedByRole: currentRole,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    const hasFirebase = typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' && db;
+    if(hasFirebase){
+      const orderRef = db.collection('orders').doc(String(order.id || order.token || ''));
+      await db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(orderRef);
+        if(!snapshot.exists){ throw new Error('Order not found in Firestore.'); }
+        const data = snapshot.data() || {};
+        if(data.status !== 'Ready'){
+          throw new Error('This order is no longer Ready.');
+        }
+        transaction.update(orderRef, {
+          status: 'Completed',
+          completedAt: typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+          completedBy: actingUserId,
+          completedByRole: currentRole,
+          updatedAt: typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : new Date()
+        });
       });
-    });
+    }
     [orders, orderHistory, myPurchases, purchaseStore].forEach(list => {
       const found = list.find(item =>
         String(item.id) === String(order.id) ||
@@ -1138,10 +1250,16 @@ window.completeOrder = async function(orderKey){
       if(found){
         found.status = 'Completed';
         found.completedAt = new Date();
+        found.completedBy = actingUserId;
+        found.completedByRole = currentRole;
       }
     });
-    await createStudentStatusNotification({ ...order, status: 'Completed' }, 'Order Completed');
-    await window.saveState(true);
+    if (typeof createStudentStatusNotification === 'function') {
+      await createStudentStatusNotification({ ...order, status: 'Completed' }, 'Order Completed');
+    }
+    if (typeof window.saveState === 'function') {
+      await window.saveState(true);
+    }
     renderAll();
     alert('Order completed successfully.');
   } catch (error) {
@@ -1994,18 +2112,18 @@ showClosedNote();
     if(!value || !passwordValue) return null;
     if(role === 'student'){
       const match = students.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(passwordValue) && user.active !== false);
-      if(match) return { username: match.username, name: match.name || match.username, role: 'student' };
+      if(match) return { username: match.username, name: match.name || match.username, role: 'student', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
     }
     if(role === 'owner'){
       const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(passwordValue) && user.active !== false);
-      if(match) return { username: match.username, name: match.name || match.username, role: 'owner' };
+      if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
     }
     if(role === 'admin'){
       const normalized = value.toLowerCase().replace(/\s+/g, '');
       const adminMatch = admins.find(user => String(user.username || '').trim().toLowerCase().replace(/\s+/g, '') === normalized && String(user.password || '') === String(passwordValue) && user.active !== false);
-      if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin' };
+      if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin', uid: adminMatch.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
       if(normalized === 'admin' && String(passwordValue) === '123456'){
-        return { username: 'admin', name: 'Admin', role: 'admin' };
+        return { username: 'admin', name: 'Admin', role: 'admin', uid: 'admin', shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
       }
     }
     return null;
@@ -2017,7 +2135,7 @@ showClosedNote();
 
     const legacy=legacyLoginMatch(loginRole,input,password);
     if(legacy){
-      currentUser={username:legacy.username,name:legacy.name};
+      currentUser={username:legacy.username,name:legacy.name,uid:legacy.uid || legacy.username,shopId:legacy.shopId || DEFAULT_SHOP.id,shopName:legacy.shopName || DEFAULT_SHOP.name};
       currentRole=legacy.role;
       $('loginView').classList.add('hidden');
       $('logoutBtn').classList.remove('hidden');
@@ -2452,22 +2570,22 @@ showClosedNote();
       if(!value || !password) return null;
       if(loginRole === 'student'){
         const match = students.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
-        if(match) return { username: match.username, name: match.name || match.username, role: 'student' };
+        if(match) return { username: match.username, name: match.name || match.username, role: 'student', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
       }
       if(loginRole === 'owner'){
         const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
-        if(match) return { username: match.username, name: match.name || match.username, role: 'owner' };
+        if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
       }
       if(loginRole === 'admin'){
         const normalized = value.toLowerCase().replace(/\s+/g, '');
         const adminMatch = admins.find(user => String(user.username || '').trim().toLowerCase().replace(/\s+/g, '') === normalized && String(user.password || '') === String(password) && user.active !== false);
-        if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin' };
-        if(normalized === 'admin' && String(password) === '123456') return { username: 'admin', name: 'Admin', role: 'admin' };
+        if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin', uid: adminMatch.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
+        if(normalized === 'admin' && String(password) === '123456') return { username: 'admin', name: 'Admin', role: 'admin', uid: 'admin', shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
       }
       return null;
     })();
     if(legacy){
-      currentUser = { username: legacy.username, name: legacy.name };
+      currentUser = { username: legacy.username, name: legacy.name, uid: legacy.uid || legacy.username, shopId: legacy.shopId || DEFAULT_SHOP.id, shopName: legacy.shopName || DEFAULT_SHOP.name };
       currentRole = legacy.role;
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('loginError').classList.add('hidden');
@@ -2869,11 +2987,25 @@ showClosedNote();
     }
     const counter = document.getElementById('counter-' + i)?.value || 'Counter 2';
     const orderId = String(order.id || order.token).replace(/[^a-zA-Z0-9_-]/g, '-');
+    const firebaseReady = typeof db !== 'undefined' && db && typeof firebase !== 'undefined' && firebase && firebase.firestore;
+    if(!firebaseReady){
+      order.status = 'Ready';
+      order.counter = counter;
+      if(readyButton){
+        readyButton.disabled = false;
+        readyButton.removeAttribute('aria-busy');
+        readyButton.textContent = 'Mark Ready';
+      }
+      renderAll();
+      return;
+    }
     db.collection('orders').doc(orderId).update({ status: 'Ready', counter, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
       .then(async()=>{
         order.status='Ready';
         order.counter=counter;
-        await createStudentStatusNotification(order, 'Order Ready');
+        if(typeof createStudentStatusNotification === 'function'){
+          await createStudentStatusNotification(order, 'Order Ready');
+        }
         renderAll();
       })
       .catch(error=>{
@@ -2896,6 +3028,8 @@ showClosedNote();
   setStatus(true, 'Firebase connected');
 })();
 </script>
+<link rel="stylesheet" href="theme-override.css">
 <script src="animations.js"></script>
+<script src="theme-override.js"></script>
 </body>
 </html>

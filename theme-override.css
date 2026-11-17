@@ -1,0 +1,102 @@
+body.theme-dark {
+  background: #020817 !important;
+  color: #e2e8f0 !important;
+}
+
+body.theme-dark #loginView {
+  background: #020817 !important;
+}
+
+body.theme-dark #loginView .modal-shell {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(148,163,184,.35) !important;
+  box-shadow: 0 25px 80px rgba(15,23,42,.4) !important;
+}
+
+body.theme-dark #loginView .modal-shell * {
+  color: #0f172a !important;
+}
+
+body.theme-dark #loginView .bg-slate-100,
+body.theme-dark #loginView .bg-slate-50,
+body.theme-dark #loginView .bg-white {
+  background: #f8fafc !important;
+}
+
+body.theme-dark #themeToggle {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(148,163,184,.22) !important;
+}
+
+body.theme-dark .glass,
+body.theme-dark .bg-white,
+body.theme-dark .modal-shell,
+body.theme-dark .bg-slate-100,
+body.theme-dark .dashboard-stat-card,
+body.theme-dark .management-card,
+body.theme-dark .report-card,
+body.theme-dark .history-row,
+body.theme-dark .user-management-card,
+body.theme-dark .admin-menu-row,
+body.theme-dark .kitchen-order-card,
+body.theme-dark .notification-panel,
+body.theme-dark .rounded-3xl,
+body.theme-dark .rounded-2xl,
+body.theme-dark .rounded-xl {
+  background-color: #0f172a !important;
+  border-color: rgba(148,163,184,.22) !important;
+}
+
+body.theme-dark .bg-slate-50,
+body.theme-dark .bg-slate-900,
+body.theme-dark .bg-slate-100 {
+  background-color: #111827 !important;
+}
+
+body.theme-dark .text-slate-900,
+body.theme-dark .text-slate-800,
+body.theme-dark .text-slate-700,
+body.theme-dark .text-slate-600,
+body.theme-dark .text-slate-500,
+body.theme-dark .text-slate-400,
+body.theme-dark .text-slate-300,
+body.theme-dark .text-slate-200,
+body.theme-dark .text-slate-100,
+body.theme-dark .text-slate-50 {
+  color: #e2e8f0 !important;
+}
+
+body.theme-dark .text-slate-500,
+body.theme-dark .text-slate-400,
+body.theme-dark .text-slate-300,
+body.theme-dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+body.theme-dark .border,
+body.theme-dark .border-slate-200,
+body.theme-dark .border-slate-100,
+body.theme-dark .border-slate-300,
+body.theme-dark .divide-slate-200,
+body.theme-dark .divide-slate-100 {
+  border-color: rgba(148,163,184,.22) !important;
+}
+
+body.theme-dark .bg-slate-200 {
+  background-color: #1e293b !important;
+}
+
+body.theme-dark .bg-orange-50,
+body.theme-dark .bg-orange-100 {
+  background-color: rgba(249,115,22,.12) !important;
+}
+
+body.theme-dark .text-orange-500,
+body.theme-dark .text-orange-600,
+body.theme-dark .text-orange-700,
+body.theme-dark .text-amber-700,
+body.theme-dark .text-emerald-700 {
+  color: #fb923c !important;
+}

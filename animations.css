@@ -25,29 +25,38 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* ---------- 2. 3D tilt + glare on cards (mouse / trackpad only) ---------- */
+/* ---------- 2. 3D tilt + glare on cards (mouse and mobile touch) ---------- */
+.food-card {
+  position: relative;
+  transform: perspective(900px) rotateX(var(--cb-rx, 0deg)) rotateY(var(--cb-ry, 0deg)) translateY(0);
+  transition: transform .18s ease-out, box-shadow .35s var(--cb-ease);
+  will-change: transform;
+}
+.food-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(240px circle at var(--cb-gx, 50%) var(--cb-gy, 50%), rgba(255, 255, 255, .5), transparent 60%);
+  transition: opacity .25s;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .food-card {
-    position: relative;
-    transform: perspective(900px) rotateX(var(--cb-rx, 0deg)) rotateY(var(--cb-ry, 0deg)) translateY(0);
-    transition: transform .18s ease-out, box-shadow .35s var(--cb-ease);
-    will-change: transform;
-  }
   .food-card:hover {
     transform: perspective(900px) rotateX(var(--cb-rx, 0deg)) rotateY(var(--cb-ry, 0deg)) translateY(-6px);
     box-shadow: 0 22px 44px rgba(15, 23, 42, .14);
   }
-  .food-card::after {                                       /* soft light that follows the cursor */
-    content: "";
-    position: absolute; inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: 0;
-    background: radial-gradient(260px circle at var(--cb-gx, 50%) var(--cb-gy, 50%), rgba(255, 255, 255, .55), transparent 60%);
-    transition: opacity .25s;
-  }
   .food-card:hover::after { opacity: 1; }
 }
+
+.food-card.cb-touching {
+  box-shadow: 0 16px 32px rgba(249, 115, 22, .18);
+  border-color: rgba(249, 115, 22, .45);
+  transition: transform .06s ease-out, box-shadow .2s ease-out;
+}
+.food-card.cb-touching::after { opacity: 1; }
 
 /* ---------- 3. Button ripple (colour follows the button's text colour) ---------- */
 @property --cb-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
