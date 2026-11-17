@@ -11,34 +11,99 @@
     body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .glass { background: rgba(255,255,255,.82); backdrop-filter: blur(14px); }
     .modal-backdrop { background: rgba(15,23,42,.55); backdrop-filter: blur(5px); }
-    .pop { animation: pop .35s ease-out; }
+    .modal-backdrop[role="dialog"], #cartDrawer { opacity:0; transition:opacity .24s ease, display .24s allow-discrete; }
+    .modal-backdrop[role="dialog"]:not(.hidden), #cartDrawer:not(.hidden) { opacity:1; }
+    #cartDrawer.cart-drawer-closing { opacity:0; }
+    @starting-style {
+      .modal-backdrop[role="dialog"]:not(.hidden), #cartDrawer:not(.hidden) { opacity:0; }
+    }
+    .pop { animation: pop .35s cubic-bezier(.22,1,.36,1) both; }
     @keyframes pop { from { transform: scale(.9); opacity:0 } to { transform: scale(1); opacity:1 } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
+    button { transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s ease, filter .2s ease, background-color .2s ease; }
+    button:not(:disabled):hover { filter:brightness(1.035); }
+    button:active { transform:scale(.97); }
+    button:disabled { cursor:not-allowed; }
     .pulse-dot { animation: pulse 1.6s infinite; }
     @keyframes pulse { 50% { opacity:.45; transform:scale(.85) } }
-    .food-card { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
-    .food-card:hover { transform: translateY(-3px); box-shadow: 0 16px 28px rgba(15,23,42,.08); }
-    .food-card img { transition: transform .3s ease; }
-    .food-card:hover img { transform: scale(1.05); }
+    .food-card { animation: fadeUp .48s cubic-bezier(.22,1,.36,1) both; transition: transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease, border-color .32s ease; }
+    .food-card:nth-child(1) { animation-delay:0ms; }
+    .food-card:nth-child(2) { animation-delay:45ms; }
+    .food-card:nth-child(3) { animation-delay:90ms; }
+    .food-card:nth-child(4) { animation-delay:135ms; }
+    .food-card:nth-child(5) { animation-delay:180ms; }
+    .food-card:nth-child(6) { animation-delay:225ms; }
+    .food-card:hover { transform: translateY(-5px); box-shadow: 0 18px 34px rgba(15,23,42,.11); border-color:rgba(249,115,22,.24); }
+    .food-card img { transition: transform .45s cubic-bezier(.22,1,.36,1); }
+    .food-card:hover img { transform: scale(1.06); }
     .add-cart-btn:active, .add-cart-btn.is-added { transform: scale(.97); }
-    .cart-badge-pop { animation: cartBadgePop .35s ease; }
-    @keyframes cartBadgePop { 0%{transform:scale(.75);} 40%{transform:scale(1.25);} 100%{transform:scale(1);} }
-    .cart-drawer-panel { animation: drawerIn .28s ease; }
-    @keyframes drawerIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
-    .modal-shell { animation: modalIn .2s ease; }
-    @keyframes modalIn { from { transform: translateY(10px) scale(.96); opacity:0; } to { transform: translateY(0) scale(1); opacity:1; } }
-    .token-pass { animation: tokenPass .5s ease; }
-    @keyframes tokenPass { 0%{transform:scale(.96);opacity:0;} 55%{transform:scale(1.02);} 100%{transform:scale(1);opacity:1;} }
-    .notification-panel { animation: notifIn .22s ease; }
-    @keyframes notifIn { from { transform: translateY(-10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+    .cart-badge-pop { animation: cartBadgePop .42s cubic-bezier(.22,1,.36,1); }
+    @keyframes cartBadgePop { 0%{transform:scale(.88);} 45%{transform:scale(1.18);} 72%{transform:scale(.96);} 100%{transform:scale(1);} }
+    .cart-drawer-panel { animation: drawerIn .3s cubic-bezier(.22,1,.36,1) both; }
+    .cart-drawer-exit { animation: drawerOut .22s ease-in both; }
+    @keyframes drawerIn { from { transform: translateX(100%); opacity:.75; } to { transform: translateX(0); opacity:1; } }
+    @keyframes drawerOut { from { transform:translateX(0); opacity:1; } to { transform:translateX(100%); opacity:.8; } }
+    .modal-shell { animation: modalIn .3s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes modalIn { from { transform: translateY(12px) scale(.97); opacity:0; } to { transform: translateY(0) scale(1); opacity:1; } }
+    .token-pass { animation: tokenPass .55s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes tokenPass { 0%{transform:scale(.95);opacity:0;} 65%{transform:scale(1.015);} 100%{transform:scale(1);opacity:1;} }
+    #tokenModal [data-lucide="check-circle"] { transform-origin:center; }
+    #tokenModal:not(.hidden) [data-lucide="check-circle"] { animation: checkmarkReveal .42s .12s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes checkmarkReveal { from { transform:scale(.55) rotate(-12deg); opacity:0; } to { transform:scale(1) rotate(0); opacity:1; } }
+    .notification-panel { animation: notifIn .26s cubic-bezier(.22,1,.36,1) both; transform-origin:top right; }
+    @keyframes notifIn { from { transform: translateY(-8px) scale(.985); opacity:0; } to { transform: translateY(0) scale(1); opacity:1; } }
+    .notification-row { animation: fadeUp .28s ease both; }
+    .notification-row:nth-child(2) { animation-delay:35ms; }
+    .notification-row:nth-child(3) { animation-delay:70ms; }
     .badge-pulse { animation: badgePulse 1.8s infinite; }
     @keyframes badgePulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(249,115,22,.4);} 50%{transform:scale(1.05);box-shadow:0 0 0 10px rgba(249,115,22,0);} }
-    .status-badge-transition { transition: all .2s ease; }
-    .order-card-enter { animation: orderCardIn .32s ease; }
-    @keyframes orderCardIn { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+    .status-badge-transition { transition: color .25s ease, background-color .25s ease, transform .25s ease, box-shadow .25s ease; }
+    .kitchen-order-status { animation: statusReveal .32s ease both; }
+    .kitchen-order-card { transition: box-shadow .25s ease, transform .25s ease, border-color .25s ease; }
+    .kitchen-order-card:hover { transform:translateY(-2px); box-shadow:0 12px 26px rgba(15,23,42,.08); }
+    @keyframes statusReveal { from { opacity:.65; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
+    .order-card-enter { animation: orderCardIn .4s cubic-bezier(.22,1,.36,1) both; }
+    .order-card-new { animation: orderCardIn .4s cubic-bezier(.22,1,.36,1) both, newOrderGlow 1.2s ease-out both; }
+    @keyframes orderCardIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes newOrderGlow { 0%,35% { box-shadow:0 0 0 3px rgba(249,115,22,.18); border-color:#fdba74; } 100% { box-shadow:0 0 0 0 rgba(249,115,22,0); border-color:#e2e8f0; } }
+    .management-card, .report-card, .history-row, .user-management-card, .admin-menu-row, .dashboard-stat-card { animation: fadeUp .34s cubic-bezier(.22,1,.36,1) both; }
+    .management-card:nth-child(2), .report-card:nth-child(2), .history-row:nth-child(2), .user-management-card:nth-child(2), .admin-menu-row:nth-child(2), .dashboard-stat-card:nth-child(2) { animation-delay:35ms; }
+    .management-card:nth-child(3), .report-card:nth-child(3), .history-row:nth-child(3), .user-management-card:nth-child(3), .admin-menu-row:nth-child(3), .dashboard-stat-card:nth-child(3) { animation-delay:70ms; }
+    .management-card:nth-child(4), .report-card:nth-child(4), .history-row:nth-child(4), .user-management-card:nth-child(4), .admin-menu-row:nth-child(4), .dashboard-stat-card:nth-child(4) { animation-delay:105ms; }
+    .stock-state { transition: color .25s ease, background-color .25s ease, transform .25s ease; animation: stockReveal .28s ease both; }
+    @keyframes stockReveal { from { opacity:.55; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
+    .order-progress { max-width:32rem; }
+    .order-progress-track { height:3px; margin:0 1.15rem; background:#e2e8f0; border-radius:999px; overflow:hidden; }
+    .order-progress-fill { display:block; height:100%; background:#f97316; border-radius:inherit; transition:width .45s cubic-bezier(.22,1,.36,1); }
+    .order-progress-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:-4px; }
+    .order-progress-step { display:flex; flex-direction:column; align-items:center; gap:.3rem; color:#94a3b8; font-size:.65rem; }
+    .order-progress-step i { width:9px; height:9px; border:2px solid #cbd5e1; border-radius:50%; background:#fff; transition:all .3s ease; }
+    .order-progress-step.is-complete { color:#c2410c; }
+    .order-progress-step.is-complete i { width:11px; height:11px; margin-top:-1px; border-color:#f97316; background:#f97316; box-shadow:0 0 0 3px rgba(249,115,22,.12); }
+    .order-progress-step.is-current i { animation:progressPulse 1.6s ease-in-out infinite; }
+    @keyframes progressPulse { 50% { box-shadow:0 0 0 5px rgba(249,115,22,.12); } }
+    .stat-counter-update { animation: counterUpdate .32s cubic-bezier(.22,1,.36,1); }
+    @keyframes counterUpdate { 0%{transform:translateY(4px);opacity:.55;} 100%{transform:translateY(0);opacity:1;} }
+    .admin-section-enter, .page-enter { animation: pageEnter .28s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes pageEnter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    #checkoutArea label { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+    #checkoutArea label.payment-selected { box-shadow:0 5px 16px rgba(249,115,22,.12); animation: paymentSelect .24s ease both; }
+    @keyframes paymentSelect { from { transform:scale(.985); } to { transform:scale(1); } }
+    .app-toast { animation: toastIn .28s cubic-bezier(.22,1,.36,1) both; }
+    .app-toast.toast-out { animation: toastOut .18s ease-in both; }
+    @keyframes toastIn { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes toastOut { to { opacity:0; transform:translateY(6px) scale(.99); } }
+    .button-loading::after { content:""; display:inline-block; width:.9rem; height:.9rem; margin-left:.55rem; vertical-align:-.12rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+    .order-spinner { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(255,255,255,.6); border-top-color:#fff; border-radius:999px; animation: spin .75s linear infinite; }
+    @media (max-width:639px) {
+      #toastRegion { left:.75rem; right:.75rem; top:4.75rem; }
+      .app-toast { max-width:100%; }
+      .food-card:hover, .kitchen-order-card:hover { transform:none; }
+      .order-progress-step { font-size:.58rem; }
+    }
     .cancelled-card { background: linear-gradient(135deg,#fff5f5 0%,#f8fafc 100%); border-color: #fecaca; }
     .cancelled-dot { animation: cancelledPulse .9s ease-in-out infinite alternate; }
     @keyframes cancelledPulse { from { opacity:.5; transform:scale(.9);} to { opacity:1; transform:scale(1.15);} }
-    .order-spinner { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(255,255,255,.6); border-top-color:#fff; border-radius:999px; animation: spin .75s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .qr { background: repeating-linear-gradient(90deg,#111 0 4px,#fff 4px 8px), repeating-linear-gradient(0deg,transparent 0 5px,#111 5px 8px); background-blend-mode:multiply; }
     :focus-visible{outline:3px solid #f97316;outline-offset:2px}
@@ -107,11 +172,12 @@ header>div>div:last-child{min-width:0}
   html{scroll-behavior:auto}
 }
 </style>
+<link rel="stylesheet" href="animations.css">
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
   <a href="#" id="skipLink" class="sr-only focus:not-sr-only fixed top-2 left-2 z-[200] bg-white px-4 py-2 rounded-lg font-bold shadow">Skip to content</a>
   <div id="loginView" class="fixed inset-0 z-[100] bg-slate-950 grid place-items-center p-4">
-    <div class="w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl">
+    <div class="modal-shell w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white grid place-items-center">
           <i data-lucide="utensils" class="w-6 h-6"></i>
@@ -175,10 +241,12 @@ header>div>div:last-child{min-width:0}
     </div>
   </header>
 
-  <div id="notificationPanel" class="hidden fixed right-4 top-20 z-[80] w-[calc(100%-2rem)] max-w-sm bg-white border rounded-2xl shadow-2xl overflow-hidden">
+  <div id="notificationPanel" class="notification-panel hidden fixed right-4 top-20 z-[80] w-[calc(100%-2rem)] max-w-sm bg-white border rounded-2xl shadow-2xl overflow-hidden">
     <div class="p-4 border-b flex items-center justify-between"><div><b>Notifications</b><p class="text-xs text-slate-500">Order updates</p></div><button id="clearNotifications" class="text-xs font-bold text-orange-600">Clear</button></div>
     <div id="notificationList" class="max-h-80 overflow-y-auto"></div>
   </div>
+
+  <div id="toastRegion" class="fixed top-20 right-4 z-[110] flex flex-col gap-2 pointer-events-none" aria-live="polite" aria-relevant="additions"></div>
 
   <main id="studentView" class="max-w-6xl mx-auto px-4 py-6">
     <section class="rounded-3xl bg-slate-900 text-white p-6 md:p-8 overflow-hidden relative">
@@ -235,7 +303,7 @@ header>div>div:last-child{min-width:0}
   </main>
 
   <div id="studentOrderDetailsModal" class="hidden fixed inset-0 z-[80] modal-backdrop grid place-items-center p-4" role="dialog" aria-modal="true" aria-labelledby="studentOrderDetailsTitle">
-    <section class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <section class="modal-shell bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
         <h2 id="studentOrderDetailsTitle" class="text-xl font-black">Order Details</h2>
         <button id="studentOrderDetailsClose" type="button" class="w-9 h-9 rounded-xl bg-slate-100" aria-label="Close order details">×</button>
@@ -264,10 +332,10 @@ header>div>div:last-child{min-width:0}
       <span class="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm">● Shop Open</span>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Today's Orders</p><b id="ownerOrders" class="text-2xl">0</b></div>
-      <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Items in Stock</p><b id="ownerStock" class="text-2xl">0</b></div>
-      <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Low Stock</p><b id="ownerLow" class="text-2xl text-amber-600">0</b></div>
-      <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Revenue</p><b id="ownerRevenue" class="text-2xl text-emerald-600">₹0</b></div>
+      <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Today's Orders</p><b id="ownerOrders" class="text-2xl">0</b></div>
+      <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Items in Stock</p><b id="ownerStock" class="text-2xl">0</b></div>
+      <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Low Stock</p><b id="ownerLow" class="text-2xl text-amber-600">0</b></div>
+      <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Revenue</p><b id="ownerRevenue" class="text-2xl text-emerald-600">₹0</b></div>
     </div>
     <div class="bg-white rounded-2xl border p-4 md:p-5 mb-5">
       <div class="flex items-center justify-between gap-3 mb-3">
@@ -309,10 +377,10 @@ header>div>div:last-child{min-width:0}
 
     <section id="adminMenuSection">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Menu Items</p><b id="statItems" class="text-2xl">0</b></div>
-        <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Total Stock</p><b id="statStock" class="text-2xl">0</b></div>
-        <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Low Stock</p><b id="statLow" class="text-2xl text-amber-600">0</b></div>
-        <div class="bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Out of Stock</p><b id="statOut" class="text-2xl text-red-600">0</b></div>
+        <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Menu Items</p><b id="statItems" class="text-2xl">0</b></div>
+        <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Total Stock</p><b id="statStock" class="text-2xl">0</b></div>
+        <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Low Stock</p><b id="statLow" class="text-2xl text-amber-600">0</b></div>
+        <div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">Out of Stock</p><b id="statOut" class="text-2xl text-red-600">0</b></div>
       </div>
 
       <div class="bg-white rounded-2xl border p-4 md:p-5">
@@ -488,7 +556,7 @@ header>div>div:last-child{min-width:0}
   </div>
 
   <div id="tokenModal" class="fixed inset-0 z-[60] hidden modal-backdrop grid place-items-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center pop shadow-2xl">
+    <div class="token-pass modal-shell bg-white rounded-3xl max-w-sm w-full p-6 text-center pop shadow-2xl">
       <div class="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center"><i data-lucide="check-circle" class="w-8 h-8"></i></div>
       <p class="text-emerald-600 font-black mt-3 text-sm uppercase">Order confirmed</p>
       <h2 class="text-3xl font-black mt-1">Pickup Pass</h2>
@@ -505,7 +573,7 @@ header>div>div:last-child{min-width:0}
   </div>
 
   <div id="reviewModal" class="fixed inset-0 z-[78] hidden modal-backdrop grid place-items-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
+    <div class="modal-shell bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
       <div class="flex items-center justify-between mb-4">
         <div><h3 class="text-xl font-black">Review Your Food</h3><p id="reviewFoodName" class="text-xs text-slate-500">Your recent purchase</p></div>
         <button id="reviewModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button>
@@ -527,7 +595,7 @@ header>div>div:last-child{min-width:0}
   </div>
 
   <div id="foodModal" class="fixed inset-0 z-[70] hidden modal-backdrop grid place-items-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
+    <div class="modal-shell bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
       <div class="flex items-center justify-between mb-4"><h3 id="foodModalTitle" class="text-xl font-black">Add Food</h3><button id="foodModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button></div>
       <div class="space-y-3">
         <input id="foodName" class="w-full border rounded-xl px-3 py-2" placeholder="Food name">
@@ -542,7 +610,7 @@ header>div>div:last-child{min-width:0}
 
 
   <div id="studentModal" class="fixed inset-0 z-[76] hidden modal-backdrop grid place-items-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
+    <div class="modal-shell bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
       <div class="flex items-center justify-between mb-4">
         <div><h3 class="text-xl font-black">Add Student</h3><p class="text-xs text-slate-500">Create a CampusBite student profile. The student Auth account must also exist in Firebase Authentication.</p></div>
         <button id="studentModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button>
@@ -558,7 +626,7 @@ header>div>div:last-child{min-width:0}
   </div>
 
   <div id="ownerModal" class="fixed inset-0 z-[75] hidden modal-backdrop grid place-items-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
+    <div class="modal-shell bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
       <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-black">Add Shop Owner</h3><button id="ownerModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button></div>
       <div class="space-y-3">
         <input id="ownerName" class="w-full border rounded-xl px-3 py-2" placeholder="Owner name">
@@ -570,7 +638,7 @@ header>div>div:last-child{min-width:0}
   </div>
 
   <div id="adminModal" class="fixed inset-0 z-[77] hidden modal-backdrop grid place-items-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
+    <div class="modal-shell bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl pop">
       <div class="flex items-center justify-between mb-4">
         <div><h3 class="text-xl font-black">Add Administrator</h3><p class="text-xs text-slate-500">Creates a Firebase account with administrator access.</p></div>
         <button id="adminModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button>
@@ -607,6 +675,39 @@ let orders = [
 ];
 function icon(name){return `<i data-lucide="${name}" class="w-4 h-4"></i>`}
 function inlineArg(value){return JSON.stringify(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function getStudentItemLimit(food){
+  const available=Math.max(0,Number(food?.qty||0));
+  return available>0&&available<=10 ? Math.min(2,available) : available;
+}
+let cartCloseTimer=null;
+function replayAnimation(element,className){
+ if(!element)return;
+ element.classList.remove(className);
+ void element.offsetWidth;
+ element.classList.add(className);
+}
+function setMotionText(element,value){
+ if(!element)return;
+ const next=String(value);
+ if(element.textContent===next)return;
+ element.textContent=next;
+ replayAnimation(element,'stat-counter-update');
+}
+function showToast(message){
+ const region=document.getElementById('toastRegion');
+ if(!region)return;
+ while(region.children.length>=3)region.firstElementChild.remove();
+ const toast=document.createElement('div');
+ toast.className='app-toast pointer-events-auto flex items-center gap-3 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-xl';
+ toast.setAttribute('role','status');
+ toast.textContent=message;
+ region.appendChild(toast);
+ window.setTimeout(()=>{
+   if(!toast.isConnected)return;
+   toast.classList.add('toast-out');
+   window.setTimeout(()=>toast.remove(),200);
+ },2300);
+}
 
 let editingFoodId = null;
 let orderHistory = [
@@ -617,19 +718,19 @@ let orderHistory = [
 
 function renderAdmin(){
  const stock=menu.reduce((a,x)=>a+(x.qty||0),0), low=menu.filter(x=>(x.qty||0)>0&&(x.qty||0)<=10).length, out=menu.filter(x=>(x.qty||0)<=0).length;
- document.getElementById('statItems').textContent=menu.length;
- document.getElementById('statStock').textContent=stock;
- document.getElementById('statLow').textContent=low;
- document.getElementById('statOut').textContent=out;
+ setMotionText(document.getElementById('statItems'),menu.length);
+ setMotionText(document.getElementById('statStock'),stock);
+ setMotionText(document.getElementById('statLow'),low);
+ setMotionText(document.getElementById('statOut'),out);
  renderSpecialServices();
  document.getElementById('adminMenuTable').innerHTML=menu.map(x=>{
    const q=x.qty||0, status=q===0?'Out of Stock':q<=10?'Low Stock':'In Stock';
    const cls=q===0?'text-red-600':q<=10?'text-amber-600':'text-emerald-600';
-   return `<tr class="border-b last:border-0">
+   return `<tr class="admin-menu-row border-b last:border-0">
      <td class="py-3"><div class="flex items-center gap-2"><span class="text-2xl">${x.emoji}</span><b>${x.name}</b></div></td>
      <td>${x.cat}</td><td>₹${x.price}</td>
      <td><input data-stock="${x.id}" type="number" min="0" value="${q}" class="w-20 border rounded-lg px-2 py-1"></td>
-     <td><span class="${cls} font-bold">${status}</span></td>
+     <td><span class="stock-state ${cls} font-bold">${status}</span></td>
      <td class="flex gap-1"><button onclick="editFood(${inlineArg(x.id)})" class="px-3 py-1.5 rounded-lg bg-slate-100 font-bold">Edit</button><button onclick="removeFood(${inlineArg(x.id)})" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold">Remove</button></td>
    </tr>`;
  }).join('');
@@ -639,7 +740,7 @@ function renderAdmin(){
 function renderHistory(){
  const q=(document.getElementById('historySearch')?.value||'').toLowerCase();
  const rows=orderHistory.filter(o=>(o.token+' '+o.items).toLowerCase().includes(q));
- document.getElementById('historyTable').innerHTML=rows.map(o=>`<tr class="border-b last:border-0">
+ document.getElementById('historyTable').innerHTML=rows.map(o=>`<tr class="history-row border-b last:border-0">
    <td class="py-3 font-black">${o.token}</td><td>${o.items}<div class="text-xs text-slate-500 mt-1">${o.pickupLabel||'Dine-in'}</div></td><td class="font-bold">₹${o.total}</td><td>${o.payment}</td>
    <td><span class="${o.status==='Refunded'?'text-red-600':'text-emerald-600'} font-bold">${o.status}</span></td><td>${o.time}</td>
    <td>${o.status==='Refunded'?'<span class="text-slate-400">Refunded</span>':`<button onclick="refundOrder('${o.token}')" class="px-2 py-1 rounded-lg bg-red-50 text-red-600 font-bold">Refund</button>`}</td>
@@ -666,11 +767,13 @@ function renderMenu(filter='All'){
    const q=x.qty||0;
    const status=q<=0?'Out of Stock':q<=10?'Low Stock':'In Stock';
    const statusClass=q<=0?'text-red-600':q<=10?'text-amber-600':'text-emerald-600';
+   const lowStockMessage = q>0 && q<=10 ? '<p class="mt-1 text-xs font-semibold text-amber-700">Low stock: maximum 2 per student</p>' : '';
    return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
      ${renderFoodImage(x)}
      <div class="pt-3">
        <div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div>
-       <div class="flex items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span class="${statusClass} font-bold">● ${status} (${q})</span></div>
+       <div class="flex items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span class="stock-state ${statusClass} font-bold">● ${status} (${q})</span></div>
+       ${lowStockMessage}
        <button ${q<=0?'disabled':''} onclick="add(${inlineArg(x.id)})" class="add-cart-btn w-full mt-3 py-2.5 rounded-xl ${q<=0?'bg-slate-200 text-slate-400 cursor-not-allowed':'bg-slate-900 text-white hover:bg-orange-500'} font-bold text-sm transition">${q<=0?'Out of Stock':'Add to Cart'}</button>
      </div>
    </article>`;
@@ -681,8 +784,9 @@ function add(id){
  const food=menu.find(item=>String(item.id)===String(id));
  if(!food||food.active===false)return false;
  const cartItem=cart.find(item=>String(item.id)===String(id));
- if((cartItem?cartItem.qty:0)>=Number(food.qty||0)){
-   alert('Only '+(food.qty||0)+' left of '+food.name+'.');
+ const limit=getStudentItemLimit(food);
+ if((cartItem?cartItem.qty:0)>=limit){
+   alert(Number(food.qty||0)<=10 ? 'Low stock: maximum 2 items allowed.' : 'Only ' + (food.qty||0) + ' items available.');
    return false;
  }
  const cartShopId=cart[0]?.shopId||'main-canteen';
@@ -695,6 +799,7 @@ function add(id){
  else cart.push({...food,shopId:foodShopId,shopName:food.shopName||'Main Canteen',qty:1});
  renderCart();
  renderMenu();
+ showToast(food.name+' added to cart');
  return true;
 }
 function change(id,delta){
@@ -723,10 +828,10 @@ function renderCart(){
  const fee=getCurrentExtraFee(), total=sub+fee;
  const badge=document.getElementById('cartCount');
  if(badge){
-   badge.textContent=count;
-   badge.classList.remove('cart-badge-pop');
-   void badge.offsetWidth;
-   badge.classList.add('cart-badge-pop');
+   if(badge.textContent!==String(count)){
+     badge.textContent=count;
+     replayAnimation(badge,'cart-badge-pop');
+   }
  }
  document.getElementById('cartItems').innerHTML=cart.map(x=>`<div class="flex gap-3 items-center border rounded-2xl p-3"><div class="w-12 h-12 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji}</div><div class="flex-1"><b>${x.name}</b><p class="text-sm text-slate-500">₹${x.price} each</p></div><div class="flex items-center gap-2"><button onclick="change(${inlineArg(x.id)},-1)" class="w-7 h-7 rounded-lg bg-slate-100">−</button><b>${x.qty}</b><button onclick="change(${inlineArg(x.id)},1)" class="w-7 h-7 rounded-lg bg-slate-100">+</button></div></div>`).join('');
  document.getElementById('cartEmpty').classList.toggle('hidden',count>0);
@@ -742,11 +847,28 @@ function renderCart(){
 }
 
 function openCart(){
+  if(cartCloseTimer){clearTimeout(cartCloseTimer);cartCloseTimer=null;}
   document.getElementById('cartDrawer').classList.remove('hidden');
   const panel = document.getElementById('cartDrawer')?.querySelector('aside');
-  if(panel){ panel.classList.remove('cart-drawer-panel'); void panel.offsetWidth; panel.classList.add('cart-drawer-panel'); }
+  document.getElementById('cartDrawer').classList.remove('cart-drawer-closing');
+  if(panel){ panel.classList.remove('cart-drawer-exit'); replayAnimation(panel,'cart-drawer-panel'); }
 }
-function closeCart(){document.getElementById('cartDrawer').classList.add('hidden');}
+function closeCart(){
+ const drawer=document.getElementById('cartDrawer');
+ if(!drawer||drawer.classList.contains('hidden'))return;
+ if(cartCloseTimer)clearTimeout(cartCloseTimer);
+ drawer.classList.add('cart-drawer-closing');
+ const panel=drawer.querySelector('aside');
+ if(panel){panel.classList.remove('cart-drawer-panel');replayAnimation(panel,'cart-drawer-exit');}
+ cartCloseTimer=window.setTimeout(()=>{
+   if(drawer.classList.contains('cart-drawer-closing')){
+     drawer.classList.add('hidden');
+     drawer.classList.remove('cart-drawer-closing');
+     if(panel)panel.classList.remove('cart-drawer-exit');
+   }
+   cartCloseTimer=null;
+ },230);
+}
 function renderMyPurchases(){
  const el=document.getElementById('myPurchases'), empty=document.getElementById('noPurchases');
  if(!el||!empty)return;
@@ -771,6 +893,12 @@ function renderMyPurchases(){
      ?(reviewed?'<span class="text-xs font-bold text-emerald-600">✓ Reviewed</span>':`<button type="button" onclick="openReview(${index})" class="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm">⭐ Review Food</button>`)
      :'';
    const cancelledClass = order.status === 'Cancelled' ? 'cancelled-card' : 'order-card-enter';
+   const progressSteps=['Preparing','Accepted','Ready','Completed'];
+   const progressIndex=order.status==='Completed'?3:order.status==='Ready'?2:['Accepted','Confirmed'].includes(order.status)?1:0;
+   const progressMarkup=['Cancelled','Refunded'].includes(order.status)?'':`<div class="order-progress mt-4" aria-label="Order progress">
+     <div class="order-progress-track"><span class="order-progress-fill" style="width:${Math.round(progressIndex/(progressSteps.length-1)*100)}%"></span></div>
+     <div class="order-progress-steps">${progressSteps.map((step,stepIndex)=>`<span class="order-progress-step ${stepIndex<=progressIndex?'is-complete':''} ${stepIndex===progressIndex?'is-current':''}"${stepIndex===progressIndex?' aria-current="step"':''}><i></i><small>${step}</small></span>`).join('')}</div>
+   </div>`;
    const cancellationMessage = order.status === 'Cancelled' && (order.cancelReason || order.cancelledAt)
      ? `<p class="mt-2 text-xs font-semibold text-red-700">Order Cancelled${order.cancelReason ? ' • Reason: '+escapeHtml(order.cancelReason) : ''}</p>`
      : '';
@@ -778,6 +906,7 @@ function renderMyPurchases(){
      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
        <div class="min-w-0">
          <div class="flex flex-wrap items-center gap-2"><b class="text-lg">${escapeHtml(order.token||'Order')}</b><span class="status-badge-transition text-xs font-bold px-2.5 py-1 rounded-full ${statusMeta[1]}">${statusMeta[0]}</span></div>
+         ${progressMarkup}
          <p class="text-sm font-semibold text-slate-600 mt-2">🏪 ${escapeHtml(order.shopName||'Main Canteen')}</p>
          <p class="text-sm text-slate-700 mt-2 leading-6">${itemsText}</p>
          <p class="font-black text-lg mt-2">₹${Number(order.total||0)}</p>
@@ -960,14 +1089,92 @@ async function cancelOrderByOwner(orderId){
   }
 }
 
+window.completeOrder = async function(orderKey){
+  if(!auth?.currentUser || !['owner','admin'].includes(currentRole)){
+    alert('Only shopkeeper or admin can complete orders.');
+    return;
+  }
+  const order = orders.find(item =>
+    String(item.id) === String(orderKey) ||
+    String(item.token) === String(orderKey)
+  );
+  if(!order){
+    alert('Order not found.');
+    return;
+  }
+  if(order.status !== 'Ready'){
+    alert('Only Ready orders can be completed.');
+    return;
+  }
+  if(currentRole === 'owner'){
+    const shopId = currentUser?.shopId || DEFAULT_SHOP.id;
+    if(String(order.shopId || '') !== String(shopId) && String(order.ownerId || '') !== String(auth.currentUser.uid)){
+      alert('You can only complete your own shop orders.');
+      return;
+    }
+  }
+  try {
+    const orderRef = db.collection('orders').doc(String(order.id));
+    await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(orderRef);
+      if(!snapshot.exists){ throw new Error('Order not found in Firestore.'); }
+      const data = snapshot.data() || {};
+      if(data.status !== 'Ready'){
+        throw new Error('This order is no longer Ready.');
+      }
+      transaction.update(orderRef, {
+        status: 'Completed',
+        completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        completedBy: auth.currentUser.uid,
+        completedByRole: currentRole,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    [orders, orderHistory, myPurchases, purchaseStore].forEach(list => {
+      const found = list.find(item =>
+        String(item.id) === String(order.id) ||
+        String(item.token) === String(order.token)
+      );
+      if(found){
+        found.status = 'Completed';
+        found.completedAt = new Date();
+      }
+    });
+    await createStudentStatusNotification({ ...order, status: 'Completed' }, 'Order Completed');
+    await window.saveState(true);
+    renderAll();
+    alert('Order completed successfully.');
+  } catch (error) {
+    console.error('Complete order failed:', error);
+    alert(error.message || 'Unable to complete order.');
+  }
+};
+
+let kitchenRenderedOnce=false,kitchenOrderKeys=new Set();
 function renderOrders(){
- document.getElementById('orders').innerHTML=orders.map((o,i)=>`<div class="bg-white border rounded-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between"><div class="flex items-center gap-4"><div class="w-14 h-14 rounded-xl bg-slate-900 text-white grid place-items-center font-black text-sm">${o.token}</div><div><b>${o.items}</b><p class="text-sm text-slate-500">Total ₹${o.total} • ${o.status}</p></div></div>${o.status==='Preparing'?`<div class="flex flex-wrap gap-2">
-  <select id="counter-${i}" class="border rounded-xl px-3 py-2 font-bold text-sm"><option>Counter 1</option><option>Counter 2</option><option>Counter 3</option><option>Counter 4</option></select>
-  <button onclick="ready(${i})" class="px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-bold">Mark Ready</button>
-  <button onclick="cancelOrderByOwner(${inlineArg(o.id || o.token)})" class="px-4 py-2.5 rounded-xl bg-red-50 text-red-700 font-bold">Cancel</button>
-</div>`:o.status==='Cancelled' ? '<span class="text-red-600 font-black">✕ Cancelled • '+escapeHtml(o.cancelReason || 'Food unavailable')+'</span>' : '<span class="text-emerald-600 font-black">✓ Ready • '+escapeHtml(o.counter||'Counter 2')+'</span>'}</div>`).join('');
- document.getElementById('pendingCount').textContent=orders.filter(o=>o.status==='Preparing').length;
- document.getElementById('readyCount').textContent=orders.filter(o=>o.status==='Ready').length;
+ const currentKeys=new Set();
+ const html=orders.map((o,i)=>{
+   const key=String(o.id||o.token||i);
+   const isNew=kitchenRenderedOnce&&!kitchenOrderKeys.has(key);
+   currentKeys.add(key);
+   const statusClass=o.status==='Ready'?'text-emerald-700':o.status==='Cancelled'?'text-red-700':'text-amber-700';
+   return `<article class="kitchen-order-card border bg-white rounded-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between ${isNew?'order-card-new':''}">
+     <div class="flex items-center gap-4"><div class="w-14 h-14 rounded-xl bg-slate-900 text-white grid place-items-center font-black text-sm">${o.token}</div><div><b>${o.items}</b><p class="text-sm text-slate-500">Total ₹${o.total} • <span class="kitchen-order-status status-badge-transition inline-block rounded-full px-2 py-0.5 font-bold ${statusClass}">${o.status}</span></p></div></div>
+     ${o.status==='Preparing'?`<div class="flex flex-wrap gap-2">
+       <select id="counter-${i}" class="border rounded-xl px-3 py-2 font-bold text-sm"><option>Counter 1</option><option>Counter 2</option><option>Counter 3</option><option>Counter 4</option></select>
+       <button data-ready-index="${i}" onclick="ready(${i})" class="px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-bold">Mark Ready</button>
+       <button onclick="cancelOrderByOwner(${inlineArg(o.id || o.token)})" class="px-4 py-2.5 rounded-xl bg-red-50 text-red-700 font-bold">Cancel</button>
+     </div>`:o.status==='Ready'?`<div class="flex flex-wrap items-center gap-2">
+       <span class="text-emerald-600 font-black">✓ Ready • ${escapeHtml(o.counter||'Counter 2')}</span>
+       <button type="button" onclick="completeOrder(${inlineArg(o.id || o.token)})" class="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold">Mark Completed</button>
+     </div>`:o.status==='Completed'?'<span class="text-blue-700 font-black">✓ Order Completed</span>':o.status==='Cancelled'?'<span class="text-red-600 font-black">✕ Cancelled • '+escapeHtml(o.cancelReason||'Food unavailable')+'</span>':''}
+   </article>`;
+ }).join('');
+ document.getElementById('orders').innerHTML=html;
+ kitchenOrderKeys=currentKeys;
+ kitchenRenderedOnce=true;
+ setMotionText(document.getElementById('pendingCount'),orders.filter(o=>o.status==='Preparing').length);
+ setMotionText(document.getElementById('readyCount'),orders.filter(o=>o.status==='Ready').length);
  lucide.createIcons();
 }
 document.querySelectorAll('.cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('bg-slate-900','text-white'));document.querySelectorAll('.cat-btn').forEach(x=>x.classList.add('bg-white','border','border-slate-200'));b.classList.remove('bg-white','border','border-slate-200');b.classList.add('bg-slate-900','text-white');renderMenu(b.dataset.cat)});
@@ -1034,7 +1241,7 @@ function updateServiceStatus(){
 function renderSpecialServices(){
  const el=document.getElementById('specialServiceList'); if(!el)return;
  if(!specialServiceWindows.length){el.innerHTML='<p class="text-sm text-slate-400">No extra opening time has been added for today.</p>';return;}
- el.innerHTML=specialServiceWindows.map((w,i)=>`<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border rounded-xl p-3"><div><b>${w.name}</b><p class="text-sm text-slate-500">${formatHM(w.start)} – ${formatHM(w.end)} today</p></div><button type="button" onclick="removeSpecialService(${i})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div>`).join('');
+ el.innerHTML=specialServiceWindows.map((w,i)=>`<div class="management-card flex flex-col sm:flex-row sm:items-center justify-between gap-2 border rounded-xl p-3"><div><b>${w.name}</b><p class="text-sm text-slate-500">${formatHM(w.start)} – ${formatHM(w.end)} today</p></div><button type="button" onclick="removeSpecialService(${i})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div>`).join('');
 }
 function formatHM(hm){const [h,m]=hm.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 function removeSpecialService(i){specialServiceWindows.splice(i,1);renderSpecialServices();updateServiceStatus();}
@@ -1168,7 +1375,7 @@ function renderAdmins(){
  }
  admins.forEach(admin=>{
    const card=document.createElement('div');
-   card.className='border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+   card.className='user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
    const details=document.createElement('div');
    const name=document.createElement('b');
    name.textContent=admin.name||'Administrator';
@@ -1236,11 +1443,11 @@ function renderOwner(){
  const feeInput=document.getElementById('ownerParcelFee'); if(feeInput) feeInput.value=parcelFee;
  const feeStatus=document.getElementById('parcelFeeStatus'); if(feeStatus) feeStatus.textContent='Current parcel charge: ₹'+parcelFee;
  const stock=menu.reduce((a,x)=>a+(x.qty||0),0), low=menu.filter(x=>(x.qty||0)>0&&(x.qty||0)<=10).length;
- document.getElementById('ownerOrders').textContent=orderHistory.length+orders.length;
- document.getElementById('ownerStock').textContent=stock;
- document.getElementById('ownerLow').textContent=low;
- document.getElementById('ownerRevenue').textContent='₹'+orderHistory.filter(x=>x.status!=='Refunded').reduce((a,x)=>a+x.total,0);
- document.getElementById('ownerMenu').innerHTML=menu.map(x=>`<div class="border rounded-xl p-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
+ setMotionText(document.getElementById('ownerOrders'),orderHistory.length+orders.length);
+ setMotionText(document.getElementById('ownerStock'),stock);
+ setMotionText(document.getElementById('ownerLow'),low);
+ setMotionText(document.getElementById('ownerRevenue'),'₹'+orderHistory.filter(x=>x.status!=='Refunded').reduce((a,x)=>a+x.total,0));
+ document.getElementById('ownerMenu').innerHTML=menu.map(x=>`<div class="management-card border rounded-xl p-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
    <div class="flex items-center gap-3 min-w-0">
      ${x.image?`<img src="${x.image}" class="w-14 h-14 rounded-xl object-cover">`:`<span class="w-14 h-14 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji||'🍽️'}</span>`}
      <div><b>${x.name}</b><p class="text-xs text-slate-500">${x.cat} • ₹${x.price} • ${x.time||'5 min'}</p></div>
@@ -1248,7 +1455,7 @@ function renderOwner(){
    <div class="flex flex-wrap items-center gap-2">
      <span class="text-xs font-bold text-slate-500">Qty</span>
      <input data-owner-stock="${x.id}" type="number" min="0" value="${x.qty||0}" class="w-20 border rounded-lg px-2 py-2">
-     <span class="text-xs font-bold ${(x.qty||0)<=10?'text-amber-600':'text-emerald-600'}">${(x.qty||0)<=0?'Out of Stock':(x.qty||0)<=10?'Low Stock':'In Stock'}</span>
+     <span class="stock-state text-xs font-bold ${(x.qty||0)<=0?'text-red-600':(x.qty||0)<=10?'text-amber-600':'text-emerald-600'}">${(x.qty||0)<=0?'Out of Stock':(x.qty||0)<=10?'Low Stock':'In Stock'}</span>
      <button onclick="editFood(${inlineArg(x.id)})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">Edit</button>
      <button onclick="removeFood(${inlineArg(x.id)})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button>
    </div>
@@ -1365,7 +1572,7 @@ function openAdminSection(section){
    if(el){ el.classList.add('hidden'); el.style.display='none'; }
  });
  const selected=document.getElementById(sections[section]);
- if(selected){ selected.classList.remove('hidden'); selected.style.display='block'; }
+ if(selected){ selected.classList.remove('hidden'); selected.style.display='block'; replayAnimation(selected,'admin-section-enter'); }
  document.querySelectorAll('.admin-section-btn').forEach(b=>{
    b.classList.remove('bg-slate-900','text-white');
    b.classList.add('bg-white','border');
@@ -1491,7 +1698,7 @@ function showOnly(id){
  const allowed={studentView:['student','owner','admin'],studentOrdersView:['student'],kitchenView:['owner','admin'],ownerView:['owner'],adminView:['admin'],reportView:['student','owner']};
  if(currentRole&&!(allowed[id]||[]).includes(currentRole)){alert('This portal is not available for your account.');return false;}
  ['studentView','studentOrdersView','kitchenView','ownerView','adminView','reportView'].forEach(x=>$(x).classList.add('hidden'));
- $(id).classList.remove('hidden');updatePortalNav();return true;}
+ $(id).classList.remove('hidden');replayAnimation($(id),'page-enter');updatePortalNav();return true;}
  document.getElementById('studentTab').onclick=()=>{
   if(currentRole!=='student')return;
   if(showOnly('studentView'))renderMenu();
@@ -1530,7 +1737,7 @@ $('logoutBtn').onclick=()=>{currentRole='';currentUser={username:'',name:''};car
 /* live status + counts */
 const _rc=renderCart;renderCart=function(){_rc();updateServiceStatus();};
 const _uss=updateServiceStatus;updateServiceStatus=function(){_uss();const c=$('countdown');if(c&&c.previousSibling)c.previousSibling.textContent=isCanteenOpenNow()?'Break ends in ':'';};
-const _ro=renderOwner;renderOwner=function(){_ro();$('ownerOrders').textContent=orderHistory.length;};
+const _ro=renderOwner;renderOwner=function(){_ro();setMotionText($('ownerOrders'),orderHistory.length);};
 setInterval(updateServiceStatus,1000);setInterval(saveState,3000);addEventListener('beforeunload',saveState);
 
 /* Swiggy/Zomato-style menu: search, sort, ratings, favourites, qty stepper */
@@ -1544,7 +1751,7 @@ function renderMenu(filter){
  if(sort==='low')list.sort((a,b)=>a.price-b.price);else if(sort==='high')list.sort((a,b)=>b.price-a.price);else if(sort==='rate')list.sort((a,b)=>R(b)-R(a));
  el.innerHTML=list.length?list.map(x=>{
   const c=cart.find(i=>String(i.id)===String(x.id)),r=ratingOf(x.name),q_=x.qty||0,st=q_<=0?'Out of Stock':q_<=10?'Low Stock':'In Stock',sc=q_<=0?'text-red-600':q_<=10?'text-amber-600':'text-emerald-600',idArg=inlineArg(x.id);
-  return `<article class="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span>🏪 ${escapeHtml(x.shopName || 'Main Canteen')}</span>${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
+  return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span>🏪 ${escapeHtml(x.shopName || 'Main Canteen')}</span>${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
  }).join(''):'<p class="col-span-full text-center text-slate-400 py-10">No dishes found.</p>';
  lucide.createIcons();}
 $('menuSearch').oninput=()=>renderMenu();$('menuSort').onchange=()=>renderMenu();
@@ -1587,20 +1794,20 @@ function closeMine(id){const r=reports.find(x=>x.id===id);if(!r||!confirm('Close
 renderReports=function(){
  const el=$('myReports');if(!el)return;const q=($('mySearch')?.value||'').toLowerCase();
  const mine=reports.filter(r=>r.reporterUsername===currentUser.username&&(r.no+' '+r.subject+' '+r.status).toLowerCase().includes(q));
- el.innerHTML=mine.length?mine.slice().reverse().map(r=>tCard(r,false)).join(''):'<div class="py-10 text-center text-slate-400">No tickets found.</div>';};
+ el.innerHTML=mine.length?mine.slice().reverse().map(r=>`<div class="report-card">${tCard(r,false)}</div>`).join(''):'<div class="py-10 text-center text-slate-400">No tickets found.</div>';};
 renderAdminReports=function(){
  const el=$('adminReportsList');if(!el)return;
  const q=($('tSearch')?.value||'').toLowerCase(),fs=$('tStatus')?.value||'',fp=$('tPrio')?.value||'',so=$('tSort')?.value||'new',w={High:3,Medium:2,Low:1};
  const list=reports.filter(r=>(!fs||r.status===fs)&&(!fp||r.priority===fp)&&(r.no+' '+r.subject+' '+r.reporterName+' '+r.token+' '+r.type).toLowerCase().includes(q));
  list.sort((a,b)=>so==='prio'?w[b.priority]-w[a.priority]:so==='old'?a.createdAt-b.createdAt:b.createdAt-a.createdAt);
  const c=s=>reports.filter(r=>r.status===s).length,done=reports.filter(r=>r.closedAt),avg=done.length?fmtDur(done.reduce((a,r)=>a+(r.closedAt-r.createdAt),0)/done.length/60000):'—';
- $('openReportsCount').textContent=(c('Open')+c('In Progress'))+' Active';
- $('ticketStats').innerHTML=[['Open',c('Open'),'text-amber-600'],['In Progress',c('In Progress'),'text-blue-600'],['Closed',c('Closed'),'text-emerald-600'],['High priority active',reports.filter(r=>r.priority==='High'&&r.status!=='Closed').length,'text-red-600'],['Avg. resolution',avg,'text-slate-800']].map(x=>`<div class="bg-slate-50 rounded-2xl border p-3"><p class="text-xs text-slate-500">${x[0]}</p><b class="text-xl ${x[2]}">${x[1]}</b></div>`).join('');
- el.innerHTML=list.length?list.map(r=>tCard(r,true)).join(''):'<div class="py-10 text-center text-slate-400">No tickets match.</div>';};
+ setMotionText($('openReportsCount'),(c('Open')+c('In Progress'))+' Active');
+ $('ticketStats').innerHTML=[['Open',c('Open'),'text-amber-600'],['In Progress',c('In Progress'),'text-blue-600'],['Closed',c('Closed'),'text-emerald-600'],['High priority active',reports.filter(r=>r.priority==='High'&&r.status!=='Closed').length,'text-red-600'],['Avg. resolution',avg,'text-slate-800']].map(x=>`<div class="dashboard-stat-card bg-slate-50 rounded-2xl border p-3"><p class="text-xs text-slate-500">${x[0]}</p><b class="text-xl ${x[2]}">${x[1]}</b></div>`).join('');
+ el.innerHTML=list.length?list.map(r=>`<div class="report-card">${tCard(r,true)}</div>`).join(''):'<div class="py-10 text-center text-slate-400">No tickets match.</div>';};
 ['tSearch','mySearch'].forEach(i=>$(i).oninput=()=>{renderAdminReports();renderReports();});['tStatus','tPrio','tSort'].forEach(i=>$(i).onchange=renderAdminReports);
 
 /* user management: activate/deactivate + reset password */
-const uRow=(u,k)=>`<div class="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${u.name}</b><p class="text-xs text-slate-500">@${u.username}${u.className?' • '+u.className:''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Reset password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
+const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${u.name}</b><p class="text-xs text-slate-500">@${u.username}${u.className?' • '+u.className:''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Reset password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
 renderStudents=function(){const e=$('studentsTable');if(e)e.innerHTML=students.map(s=>uRow(s,'student')).join('');};
 renderOwners=function(){const e=$('ownersTable');if(e)e.innerHTML=owners.map(o=>uRow(o,'owner')).join('');};
 function toggleUser(k,id){const L=k==='student'?students:owners,u=L.find(x=>x.id===id);if(!u)return;if(u.active&&L.filter(x=>x.active).length<=1){alert('At least one active '+k+' account must remain.');return;}u.active=!u.active;k==='student'?renderStudents():renderOwners();saveState();}
@@ -1782,9 +1989,54 @@ showClosedNote();
     $('kitchenMenuShortcut').classList.toggle('hidden',currentRole!=='owner');
   }
 
+  function legacyLoginMatch(role, identifier, passwordValue){
+    const value = String(identifier || '').trim();
+    if(!value || !passwordValue) return null;
+    if(role === 'student'){
+      const match = students.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(passwordValue) && user.active !== false);
+      if(match) return { username: match.username, name: match.name || match.username, role: 'student' };
+    }
+    if(role === 'owner'){
+      const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(passwordValue) && user.active !== false);
+      if(match) return { username: match.username, name: match.name || match.username, role: 'owner' };
+    }
+    if(role === 'admin'){
+      const normalized = value.toLowerCase().replace(/\s+/g, '');
+      const adminMatch = admins.find(user => String(user.username || '').trim().toLowerCase().replace(/\s+/g, '') === normalized && String(user.password || '') === String(passwordValue) && user.active !== false);
+      if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin' };
+      if(normalized === 'admin' && String(passwordValue) === '123456'){
+        return { username: 'admin', name: 'Admin', role: 'admin' };
+      }
+    }
+    return null;
+  }
+
   async function firebaseLogin(){
     const input=$('loginUser').value.trim(), password=$('loginPass').value, error=$('loginError');
     if(!input||!password){error.textContent='Enter your email/ID and password.';error.classList.remove('hidden');return;}
+
+    const legacy=legacyLoginMatch(loginRole,input,password);
+    if(legacy){
+      currentUser={username:legacy.username,name:legacy.name};
+      currentRole=legacy.role;
+      $('loginView').classList.add('hidden');
+      $('logoutBtn').classList.remove('hidden');
+      $('roleBadge').classList.remove('hidden');
+      $('notificationBtn').classList.remove('hidden');
+      $('studentTab').classList.toggle('hidden',currentRole!=='student');
+      $('vendorTab').classList.toggle('hidden',currentRole==='student');
+      $('foodMenuTab').classList.toggle('hidden',currentRole==='student');
+      $('adminTab').classList.toggle('hidden',currentRole!=='admin');
+      $('reportTab').classList.toggle('hidden',!(currentRole==='student'||currentRole==='owner'));
+      if(currentRole==='student'){ showOnly('studentView'); renderMenu(); renderCart(); renderMyPurchases(); }
+      if(currentRole==='owner'){ showOnly('ownerView'); renderOwner(); }
+      if(currentRole==='admin'){ showOnly('adminView'); openAdminSection('menu'); }
+      $('roleBadge').textContent = { student: '🎓 ', owner: '🏪 ', admin: '🛡️ ' }[currentRole] + currentUser.name;
+      updatePortalNav();
+      status(true,'Local login • demo access');
+      return;
+    }
+
     const email=input.includes('@')?input:(input.toLowerCase()+'@campusbite.app');
     const btn=$('loginBtn');btn.disabled=true;btn.textContent='Signing in…';
     try{
@@ -2194,6 +2446,51 @@ showClosedNote();
       errorBox.classList.remove('hidden');
       return;
     }
+
+    const legacy = (() => {
+      const value = String(loginInput || '').trim();
+      if(!value || !password) return null;
+      if(loginRole === 'student'){
+        const match = students.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
+        if(match) return { username: match.username, name: match.name || match.username, role: 'student' };
+      }
+      if(loginRole === 'owner'){
+        const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
+        if(match) return { username: match.username, name: match.name || match.username, role: 'owner' };
+      }
+      if(loginRole === 'admin'){
+        const normalized = value.toLowerCase().replace(/\s+/g, '');
+        const adminMatch = admins.find(user => String(user.username || '').trim().toLowerCase().replace(/\s+/g, '') === normalized && String(user.password || '') === String(password) && user.active !== false);
+        if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin' };
+        if(normalized === 'admin' && String(password) === '123456') return { username: 'admin', name: 'Admin', role: 'admin' };
+      }
+      return null;
+    })();
+    if(legacy){
+      currentUser = { username: legacy.username, name: legacy.name };
+      currentRole = legacy.role;
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('loginError').classList.add('hidden');
+      ['logoutBtn', 'roleBadge', 'notificationBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.remove('hidden');
+      });
+      document.getElementById('studentTab').classList.toggle('hidden', currentRole !== 'student');
+      document.getElementById('myOrdersTab').classList.toggle('hidden', currentRole !== 'student');
+      document.getElementById('vendorTab').classList.toggle('hidden', currentRole === 'student');
+      document.getElementById('foodMenuTab').classList.toggle('hidden', currentRole === 'student');
+      document.getElementById('adminTab').classList.toggle('hidden', currentRole !== 'admin');
+      document.getElementById('reportTab').classList.toggle('hidden', !(currentRole === 'student' || currentRole === 'owner'));
+      document.getElementById('kitchenMenuShortcut').classList.toggle('hidden', currentRole !== 'owner');
+      document.getElementById('roleBadge').textContent = { student: '🎓 ', owner: '🏪 ', admin: '🛡️ ' }[currentRole] + currentUser.name;
+      if(currentRole === 'student'){ showOnly('studentView'); renderMenu(); renderCart(); renderMyPurchases(); }
+      else if(currentRole === 'owner'){ showOnly('ownerView'); renderOwner(); }
+      else { showOnly('adminView'); openAdminSection('menu'); }
+      updatePortalNav();
+      setStatus(true, 'Local login • demo access');
+      return;
+    }
+
     const email = getAuthEmail(loginInput);
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
@@ -2362,6 +2659,7 @@ showClosedNote();
       label.classList.toggle('border-2', radio.checked);
       label.classList.toggle('border-orange-500', radio.checked);
       label.classList.toggle('border', !radio.checked);
+      label.classList.toggle('payment-selected', radio.checked);
     });
   }
 
@@ -2543,6 +2841,7 @@ showClosedNote();
       closeCart();
       renderAll();
       document.getElementById('tokenModal').classList.remove('hidden');
+      replayAnimation(document.querySelector('#tokenModal .token-pass'),'token-pass');
       setStatus(synced ? true : false, synced ? 'Order placed • synced' : 'Order placed • sync incomplete');
       if(!synced){
         alert('Your order was placed, but stock and notifications could not sync. Please notify the canteen owner.');
@@ -2562,6 +2861,12 @@ showClosedNote();
   window.ready = function(i){
     const order = orders[Number(i)] || null;
     if(!order){ return; }
+    const readyButton = document.querySelector('[data-ready-index="' + i + '"]');
+    if(readyButton){
+      readyButton.disabled = true;
+      readyButton.setAttribute('aria-busy','true');
+      readyButton.innerHTML = 'Updating <span class="order-spinner" aria-hidden="true"></span>';
+    }
     const counter = document.getElementById('counter-' + i)?.value || 'Counter 2';
     const orderId = String(order.id || order.token).replace(/[^a-zA-Z0-9_-]/g, '-');
     db.collection('orders').doc(orderId).update({ status: 'Ready', counter, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
@@ -2573,6 +2878,11 @@ showClosedNote();
       })
       .catch(error=>{
         console.error('CampusBite order status error:', error);
+        if(readyButton){
+          readyButton.disabled = false;
+          readyButton.removeAttribute('aria-busy');
+          readyButton.textContent = 'Mark Ready';
+        }
         alert(error.message || 'Unable to update the order status. Please try again.');
       });
   };
@@ -2586,5 +2896,6 @@ showClosedNote();
   setStatus(true, 'Firebase connected');
 })();
 </script>
+<script src="animations.js"></script>
 </body>
 </html>

@@ -1,0 +1,273 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusBite - Premium Animations</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f7f8fa;
+}
+
+.food-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all .35s cubic-bezier(.22,1,.36,1);
+  animation: fadeUp .6s both;
+}
+
+.food-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px #00000012;
+}
+
+.food-card img {
+  transition: transform .5s ease;
+}
+
+.food-card:hover img {
+  transform: scale(1.08);
+}
+
+button {
+  transition: all .25s ease;
+}
+
+button:active {
+  transform: scale(.94);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.85) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+#successModal.show {
+  display: flex;
+}
+
+#successModal.show .modal-content {
+  animation: modalIn .4s ease;
+}
+
+.pop {
+  animation: pop .35s ease;
+}
+
+.toast {
+  animation: fadeUp .3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+</style>
+</head>
+
+<body class="min-h-screen">
+
+<header class="bg-white shadow-sm sticky top-0 z-20">
+  <div class="max-w-6xl mx-auto p-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-emerald-600">CampusBite</h1>
+      <p class="text-xs text-gray-500">Smart Campus Canteen</p>
+    </div>
+
+    <button onclick="showCart()"
+      class="bg-emerald-600 text-white px-5 py-3 rounded-xl font-bold">
+      <i data-lucide="shopping-cart" class="inline w-4"></i>
+      Cart <span id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto p-5">
+
+  <section class="py-8">
+    <p class="text-emerald-600 font-semibold">WELCOME TO CAMPUSBITE</p>
+    <h2 class="text-4xl font-bold mt-2">Hungry? Order smarter.</h2>
+    <p class="text-gray-500 mt-3">Skip the queue. Enjoy your break.</p>
+  </section>
+
+  <h2 class="text-2xl font-bold mb-5">Popular Food</h2>
+
+  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+    <article class="food-card">
+      <div class="overflow-hidden">
+        <img class="w-full h-52 object-cover"
+        src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600"
+        alt="South Indian meals">
+      </div>
+      <div class="p-5">
+        <h3 class="text-xl font-bold">South Indian Meals</h3>
+        <p class="text-gray-500 mt-2">Ready in 10 minutes</p>
+        <div class="flex justify-between items-center mt-5">
+          <span class="font-bold text-xl">₹80</span>
+          <button onclick="addToCart('South Indian Meals',80)"
+          class="bg-emerald-600 text-white px-4 py-2 rounded-xl">
+            + Add
+          </button>
+        </div>
+      </div>
+    </article>
+
+    <article class="food-card" style="animation-delay:.1s">
+      <div class="overflow-hidden">
+        <img class="w-full h-52 object-cover"
+        src="https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600"
+        alt="Samosa">
+      </div>
+      <div class="p-5">
+        <h3 class="text-xl font-bold">Samosa</h3>
+        <p class="text-gray-500 mt-2">Ready in 5 minutes</p>
+        <div class="flex justify-between items-center mt-5">
+          <span class="font-bold text-xl">₹15</span>
+          <button onclick="addToCart('Samosa',15)"
+          class="bg-emerald-600 text-white px-4 py-2 rounded-xl">
+            + Add
+          </button>
+        </div>
+      </div>
+    </article>
+
+    <article class="food-card" style="animation-delay:.2s">
+      <div class="overflow-hidden">
+        <img class="w-full h-52 object-cover"
+        src="https://images.unsplash.com/photo-1544145945-f90425340c7e?w=600"
+        alt="Fresh juice">
+      </div>
+      <div class="p-5">
+        <h3 class="text-xl font-bold">Fresh Juice</h3>
+        <p class="text-gray-500 mt-2">Ready in 3 minutes</p>
+        <div class="flex justify-between items-center mt-5">
+          <span class="font-bold text-xl">₹30</span>
+          <button onclick="addToCart('Fresh Juice',30)"
+          class="bg-emerald-600 text-white px-4 py-2 rounded-xl">
+            + Add
+          </button>
+        </div>
+      </div>
+    </article>
+
+  </section>
+
+  <section class="mt-10 bg-white p-6 rounded-2xl shadow-sm">
+    <h2 class="text-xl font-bold">Your Cart</h2>
+    <div id="cartItems" class="mt-4 text-gray-500">No items added yet.</div>
+    <p class="font-bold text-xl mt-4">Total: ₹<span id="total">0</span></p>
+    <button onclick="placeOrder()"
+    class="mt-5 bg-emerald-600 text-white w-full p-3 rounded-xl font-bold">
+      Place Demo Order
+    </button>
+  </section>
+
+</main>
+
+<div id="successModal"
+class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center p-5">
+  <div class="modal-content bg-white rounded-3xl p-8 text-center max-w-sm w-full">
+    <div class="text-5xl mb-4">🎉</div>
+    <h2 class="text-2xl font-bold text-emerald-600">Order Successful!</h2>
+    <p class="text-gray-500 mt-3">Your demo order has been placed.</p>
+    <p class="text-3xl font-bold mt-5" id="token">#CB-101</p>
+    <button onclick="closeModal()"
+    class="bg-emerald-600 text-white px-8 py-3 rounded-xl mt-6">
+      Continue
+    </button>
+  </div>
+</div>
+
+<script>
+let cart = [];
+let orderNumber = 100;
+
+function addToCart(name, price) {
+  cart.push({name, price});
+  renderCart();
+
+  const badge = document.getElementById("cartCount");
+  badge.classList.remove("pop");
+  void badge.offsetWidth;
+  badge.classList.add("pop");
+
+  showToast(name + " added to cart!");
+}
+
+function renderCart() {
+  document.getElementById("cartCount").textContent = cart.length;
+
+  const items = document.getElementById("cartItems");
+  const total = cart.reduce((sum, item) => sum + item.price, 0);
+
+  items.innerHTML = cart.length
+    ? cart.map(item => `<p class="py-2 border-b">${item.name} - ₹${item.price}</p>`).join("")
+    : "No items added yet.";
+
+  document.getElementById("total").textContent = total;
+}
+
+function showCart() {
+  document.getElementById("cartItems").scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+}
+
+function placeOrder() {
+  if (cart.length === 0) {
+    showToast("Please add food first!");
+    return;
+  }
+
+  orderNumber++;
+  document.getElementById("token").textContent = "#CB-" + orderNumber;
+  document.getElementById("successModal").classList.add("show");
+
+  cart = [];
+  renderCart();
+}
+
+function closeModal() {
+  document.getElementById("successModal").classList.remove("show");
+}
+
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.className = "toast fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-lg z-50";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.remove(), 2200);
+}
+
+lucide.createIcons();
+</script>
+
+</body>
+</html>

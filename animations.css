@@ -1,0 +1,241 @@
+/* ==========================================================================
+   CampusBite Motion — animations.css
+   Drop-in interactive animations. Load AFTER the page's own <style> so these
+   rules win:   <link rel="stylesheet" href="animations.css">  (just before </head>)
+   Pairs with animations.js.  No dependencies.  Honors prefers-reduced-motion.
+   ========================================================================== */
+
+:root {
+  --cb-ease: cubic-bezier(.22, 1, .36, 1);
+  --cb-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --cb-orange: #f97316;
+}
+
+/* ---------- 1. Menu cards: animate only NEW cards, never on every refresh ----------
+   The page's own `.food-card { animation: fadeUp }` replays on every re-render
+   (every Firestore update / cart change), which flickers. We switch it off and let
+   animations.js add `.cb-enter` only to cards that are really new.               */
+.food-card { animation: none; }
+.food-card.cb-enter {
+  animation: cbCardIn .55s var(--cb-ease) backwards;       /* backwards = no lingering transform */
+  animation-delay: calc(var(--cb-i, 0) * 45ms);
+}
+@keyframes cbCardIn {
+  from { opacity: 0; transform: translateY(26px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- 2. 3D tilt + glare on cards (mouse / trackpad only) ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .food-card {
+    position: relative;
+    transform: perspective(900px) rotateX(var(--cb-rx, 0deg)) rotateY(var(--cb-ry, 0deg)) translateY(0);
+    transition: transform .18s ease-out, box-shadow .35s var(--cb-ease);
+    will-change: transform;
+  }
+  .food-card:hover {
+    transform: perspective(900px) rotateX(var(--cb-rx, 0deg)) rotateY(var(--cb-ry, 0deg)) translateY(-6px);
+    box-shadow: 0 22px 44px rgba(15, 23, 42, .14);
+  }
+  .food-card::after {                                       /* soft light that follows the cursor */
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(260px circle at var(--cb-gx, 50%) var(--cb-gy, 50%), rgba(255, 255, 255, .55), transparent 60%);
+    transition: opacity .25s;
+  }
+  .food-card:hover::after { opacity: 1; }
+}
+
+/* ---------- 3. Button ripple (colour follows the button's text colour) ---------- */
+@property --cb-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.cb-rip::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--cb-rx) var(--cb-ry), rgba(255, 255, 255, .35) var(--cb-r), transparent calc(var(--cb-r) + 1px));
+  background: radial-gradient(circle at var(--cb-rx) var(--cb-ry), color-mix(in srgb, currentColor 24%, transparent) var(--cb-r), transparent calc(var(--cb-r) + 1px));
+  animation: cbRip .6s ease-out forwards;
+}
+@keyframes cbRip {
+  from { --cb-r: 0px; opacity: 1; }
+  to   { --cb-r: var(--cb-rmax, 200px); opacity: 0; }
+}
+
+/* ---------- 4. Fly-to-cart bubble + particles ---------- */
+.cb-fly {
+  position: fixed; left: 0; top: 0;
+  width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border-radius: 9999px; overflow: hidden;
+  display: grid; place-items: center;
+  font-size: 30px; line-height: 1;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(249, 115, 22, .45);
+  z-index: 9999; pointer-events: none;
+  will-change: transform, opacity;
+}
+.cb-fly img { width: 100%; height: 100%; object-fit: cover; }
+.cb-p {                                                     /* hearts, emoji sparks */
+  position: fixed; left: 0; top: 0;
+  line-height: 1; z-index: 9999; pointer-events: none;
+  will-change: transform, opacity;
+}
+.cb-ring {                                                  /* sonar ring where the bubble lands */
+  position: fixed; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+  border: 3px solid var(--cb-orange); border-radius: 9999px;
+  z-index: 9999; pointer-events: none;
+  animation: cbRing .6s ease-out forwards;
+}
+@keyframes cbRing { from { transform: scale(.4); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+
+.cb-wiggle { animation: cbWiggle .65s var(--cb-ease); }     /* cart + bell */
+@keyframes cbWiggle {
+  0%   { transform: rotate(0) scale(1); }
+  20%  { transform: rotate(-14deg) scale(1.18); }
+  40%  { transform: rotate(11deg) scale(1.18); }
+  60%  { transform: rotate(-7deg) scale(1.1); }
+  80%  { transform: rotate(3deg) scale(1.04); }
+  100% { transform: none; }
+}
+
+.cb-flash { animation: cbFlash .75s ease-out; }             /* orange ring on the card you just added */
+@keyframes cbFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, .55); }
+  100% { box-shadow: 0 0 0 16px rgba(249, 115, 22, 0); }
+}
+
+.cb-heart-pop { animation: cbHeart .55s var(--cb-spring); }
+@keyframes cbHeart {
+  0%   { transform: scale(.5); }
+  55%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 5. Screen / tab transitions (children rise in one after another) ---------- */
+.cb-view-in > * { animation: cbRise .5s var(--cb-ease) backwards; animation-delay: calc(var(--cb-k, 0) * 70ms); }
+@keyframes cbRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- 6. Count-up numbers ---------- */
+.cb-num { font-variant-numeric: tabular-nums; }
+
+/* ---------- 6b. Subtle ambient background glow (visual-only, no layout changes) ---------- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(251, 146, 60, .08), transparent 28%),
+    radial-gradient(circle at 80% 20%, rgba(14, 165, 233, .06), transparent 24%),
+    radial-gradient(circle at 50% 80%, rgba(249, 115, 22, .06), transparent 26%);
+  z-index: -1;
+}
+
+/* ---------- 7. Login error shake ---------- */
+.cb-shake { animation: cbShake .5s ease; }
+@keyframes cbShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+/* ---------- 8. "Order confirmed" check icon ---------- */
+/* The page already animates the tick itself (checkmarkReveal); we only add a green pulse ring. */
+.cb-check { position: relative; }
+.cb-check::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  border: 3px solid #10b981; pointer-events: none;
+  animation: cbRing .9s .15s ease-out forwards;
+}
+
+/* ---------- 9. Floating food in the student hero (parallax on pointer) ---------- */
+.cb-floaters { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.cb-floater {
+  position: absolute;
+  font-size: clamp(30px, 5vw, 58px); line-height: 1;
+  pointer-events: auto; cursor: pointer; user-select: none; -webkit-user-select: none;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .35));
+  transition: transform .3s ease-out;                       /* smooths the parallax */
+}
+.cb-floater > span { display: block; animation: cbFloat var(--cb-dur, 6s) ease-in-out infinite; animation-delay: var(--cb-del, 0s); }
+@keyframes cbFloat {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(-14px) rotate(5deg); }
+}
+.cb-floater > span.cb-hop { animation: cbHop .7s var(--cb-spring); }
+@keyframes cbHop {
+  0%   { transform: translateY(0) rotate(0) scale(1); }
+  40%  { transform: translateY(-26px) rotate(200deg) scale(1.3); }
+  100% { transform: translateY(0) rotate(360deg) scale(1); }
+}
+@media (max-width: 899px) {                                 /* phones: softer, but still tappable */
+  .cb-floater { opacity: .4; }
+}
+
+/* ---------- 10. FRONT PAGE: login screen food scene (touch + mouse) ---------- */
+.cb-scene {
+  position: absolute; inset: 0; z-index: 0; overflow: hidden;
+  touch-action: none;                                        /* finger drags play with the food instead of scrolling */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+}
+.cb-card { position: relative; z-index: 1; }                 /* login card always above the scene */
+.cb-glow { position: absolute; border-radius: 50%; pointer-events: none; will-change: transform; }
+.cb-glow-a {
+  width: min(80vw, 560px); aspect-ratio: 1; left: -15%; top: -20%;
+  background: radial-gradient(circle, rgba(249, 115, 22, .40), transparent 65%);
+  animation: cbDrift 14s ease-in-out infinite alternate;
+}
+.cb-glow-b {
+  width: min(70vw, 480px); aspect-ratio: 1; right: -15%; bottom: -20%;
+  background: radial-gradient(circle, rgba(251, 191, 36, .28), transparent 65%);
+  animation: cbDrift 18s ease-in-out infinite alternate-reverse;
+}
+@keyframes cbDrift { to { transform: translate3d(8vw, 6vh, 0) scale(1.18); } }
+
+.cb-ff {                                                     /* one floating food item (moved by JS) */
+  position: absolute; left: 0; top: 0; line-height: 1;
+  pointer-events: none; will-change: transform;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .35));
+}
+.cb-ff > span { display: block; }
+.cb-ff > span.cb-in { animation: cbFFin .7s var(--cb-spring) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes cbFFin { from { transform: scale(0) rotate(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.cb-ff > span.cb-pop { animation: cbPopFF .7s var(--cb-spring); }
+@keyframes cbPopFF {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.7) rotate(-14deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.cb-hint {
+  position: absolute; left: 0; right: 0; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  margin: 0; text-align: center; pointer-events: none;
+  font-size: 12px; font-weight: 700; letter-spacing: .04em; color: rgba(255, 255, 255, .6);
+  animation: cbHintIn .8s 1.2s backwards, cbHintPulse 2.4s 2s ease-in-out infinite;
+}
+@keyframes cbHintIn    { from { opacity: 0; transform: translateY(10px); } }
+@keyframes cbHintPulse { 50% { opacity: .45; } }
+.cb-scene.cb-hint-off .cb-hint { animation: none; opacity: 0; transition: opacity .4s; }
+
+/* ---------- Motion off: OS setting or CampusBiteMotion.setEnabled(false) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .cb-enter, .cb-view-in > *, .cb-wiggle, .cb-flash, .cb-heart-pop, .cb-shake, .cb-check, .cb-rip::after,
+  .cb-floater > span { animation: none !important; }
+  .food-card { transform: none !important; }
+  .cb-floaters, .cb-fly, .cb-p, .cb-ring, .cb-ff, .cb-hint { display: none !important; }
+  .cb-glow { animation: none !important; }
+}
+html.cb-off .cb-enter, html.cb-off .cb-view-in > *, html.cb-off .cb-wiggle, html.cb-off .cb-flash,
+html.cb-off .cb-heart-pop, html.cb-off .cb-shake, html.cb-off .cb-check, html.cb-off .cb-rip::after,
+html.cb-off .cb-floater > span { animation: none !important; }
+html.cb-off .food-card { transform: none !important; }
+html.cb-off .cb-floaters, html.cb-off .cb-ff, html.cb-off .cb-hint { display: none !important; }
+html.cb-off .cb-glow { animation: none !important; }
