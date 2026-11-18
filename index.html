@@ -2018,11 +2018,11 @@ renderAdminReports=function(){
 ['tSearch','mySearch'].forEach(i=>$(i).oninput=()=>{renderAdminReports();renderReports();});['tStatus','tPrio','tSort'].forEach(i=>$(i).onchange=renderAdminReports);
 
 /* user management: activate/deactivate + reset password */
-const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">${k==='owner'?'Email reset link':'Reset password'}</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
+const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Reset password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
 renderStudents=function(){const e=$('studentsTable');if(e)e.innerHTML=students.map(s=>uRow(s,'student')).join('');};
 renderOwners=function(){const e=$('ownersTable');if(e)e.innerHTML=owners.map(o=>uRow(o,'owner')).join('');};
 function toggleUser(k,id){const L=k==='student'?students:owners,u=L.find(x=>x.id===id);if(!u)return;if(u.active&&L.filter(x=>x.active).length<=1){alert('At least one active '+k+' account must remain.');return;}u.active=!u.active;k==='student'?renderStudents():renderOwners();saveState();}
-function resetPw(k,id){const u=(k==='student'?students:owners).find(x=>x.id===id);if(!u)return;const p=prompt('New password for @'+u.username+':');if(!p||!p.trim())return;u.password=p.trim();saveState();alert('Password updated.');}
+function resetPw(k,id){const u=(k==='student'?students:owners).find(x=>x.id===id);if(!u)return;const p=prompt('New app-local password for @'+u.username+':');if(p===null)return;if(p.trim().length<6){alert('Password must be at least 6 characters.');return;}u.password=p.trim();try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}));}catch(error){console.error('Could not save local password:',error);alert('The password could not be saved in this browser.');return;}alert('App-local password updated. This does not change the Firebase Authentication password.');}
 
 /* accessibility: labels, dialogs, skip link, Escape to close */
 function a11y(){
@@ -2268,7 +2268,13 @@ showClosedNote();
       if(e.message==='PROFILE_MISSING')msg='Account exists, but its CampusBite profile is missing.';
       if(e.message==='ACCOUNT_DISABLED')msg='This CampusBite account is disabled.';
       if(e.message==='WRONG_PORTAL')msg='This account belongs to a different portal.';
-      if(e.code==='auth/invalid-credential')msg='Invalid email/ID or password.';
+      if(e.code==='auth/user-not-found'){
+        msg='No Firebase account exists for this Login ID. Ask an administrator to create the account.';
+      }
+      if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'){
+        msg='The password is incorrect. Use the password set for this Firebase account or use Forgot password.';
+      }
+      if(e.code==='auth/invalid-email')msg='Enter a valid email address or Login ID.';
       if(e.code==='auth/too-many-requests')msg='Too many attempts. Try again later.';
       error.textContent=msg;error.classList.remove('hidden');
     }finally{btn.disabled=false;btn.textContent='Continue as '+({student:'Student Login',owner:'Shop Owner Login',admin:'Admin Login'}[loginRole]);}
@@ -2481,35 +2487,15 @@ showClosedNote();
 
   const resetPwLocal = window.resetPw;
   window.resetPw = async function(kind, id){
-    if(kind !== 'owner'){
-      if(resetPwLocal) resetPwLocal(kind, id);
+    if(currentRole !== 'admin'){
+      alert('Only an administrator can reset account passwords.');
       return;
     }
-    if(currentRole !== 'admin' || !auth.currentUser){
-      alert('Sign in to the Firebase admin account before sending a shopkeeper reset link.');
+    if(auth.currentUser){
+      alert('This is a Firebase account. The previous prompt method only changes local demo passwords; changing the Firebase password directly requires a secure admin backend.');
       return;
     }
-    const owner = owners.find(item => String(item.id) === String(id));
-    if(!owner) return;
-    const email = String(owner.email || getAuthEmail(owner.username)).trim();
-    if(!email){
-      alert('This shopkeeper has no email/login ID. Update the account details first.');
-      return;
-    }
-    if(!confirm('Send a Firebase password reset link to ' + email + '?')) return;
-    try{
-      await auth.sendPasswordResetEmail(email);
-      alert('Password reset email sent to ' + email + '. The shopkeeper must use the link to choose a new password.');
-    }catch(error){
-      let message = 'Could not send the password reset email. Please try again.';
-      if(error.code === 'auth/user-not-found') message = 'No Firebase Authentication account was found for ' + email + '. Check the shopkeeper login ID or account setup.';
-      else if(error.code === 'auth/invalid-email') message = 'The shopkeeper email address is invalid.';
-      else if(error.code === 'auth/too-many-requests') message = 'Too many reset requests. Please wait and try again later.';
-      else if(error.code === 'auth/operation-not-allowed') message = 'Password reset is not enabled for this Firebase project.';
-      else if(error.code === 'auth/network-request-failed') message = 'Network error. Check your connection and try again.';
-      console.error('Shopkeeper password reset email failed:', error);
-      alert(message);
-    }
+    if(resetPwLocal) resetPwLocal(kind, id);
   };
 
   function normalizeFoodItem(raw, fallbackOwnerId = '', fallbackShopId = DEFAULT_SHOP.id, fallbackShopName = DEFAULT_SHOP.name){
@@ -2799,9 +2785,11 @@ showClosedNote();
       if(err.message === 'ACCOUNT_DISABLED') msg = 'This CampusBite account is disabled.';
       if(err.message === 'INVALID_ROLE') msg = 'This account has no valid CampusBite role. Contact your administrator.';
       if(err.message === 'WRONG_PORTAL') msg = 'This account belongs to a different portal. Select the matching portal and try again.';
-      if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
-        msg = 'Email/login ID or password is incorrect. Admin accounts must exist in Firebase Authentication.';
+      if(err.code === 'auth/user-not-found') msg = 'No Firebase account exists for this Login ID. Ask an administrator to create the account.';
+      if(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials'){
+        msg = 'The password is incorrect. Use the password set for this Firebase account or use Forgot password.';
       }
+      if(err.code === 'auth/invalid-email') msg = 'Enter a valid email address or Login ID.';
       if(err.code === 'auth/network-request-failed') msg = 'Network error. Check your connection and try again.';
       if(err.code === 'permission-denied') msg = 'Could not read your CampusBite profile. Check the Firestore access rules.';
       if(err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
