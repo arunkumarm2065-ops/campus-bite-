@@ -1394,6 +1394,14 @@ function mergeOwnerProfiles(profiles){
  else merged.push({...seedOwner});
  return merged;
 }
+function mergeStudentProfiles(profiles){
+ const savedPasswords=new Map(students.filter(profile=>profile.password).map(profile=>[String(profile.username||''),profile.password]));
+ const merged=Array.isArray(profiles)?profiles.map(profile=>({...profile})):[];
+ merged.forEach(profile=>{
+  if(!profile.password&&savedPasswords.has(String(profile.username||'')))profile.password=savedPasswords.get(String(profile.username||''));
+ });
+ return merged;
+}
 let notifications = [];
 let selectedFoodImage = '';
 const CANCELLABLE_STATUSES = new Set(['Preparing','Confirmed','Accepted']);
@@ -2066,11 +2074,11 @@ renderAdminReports=function(){
 ['tSearch','mySearch'].forEach(i=>$(i).oninput=()=>{renderAdminReports();renderReports();});['tStatus','tPrio','tSort'].forEach(i=>$(i).onchange=renderAdminReports);
 
 /* user management: activate/deactivate + reset password */
-const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button data-local-only onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">${k==='owner'?'Change local password':'Reset password'}</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
+const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button data-local-only onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Change local password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
 renderStudents=function(){const e=$('studentsTable');if(e)e.innerHTML=students.map(s=>uRow(s,'student')).join('');};
 renderOwners=function(){const e=$('ownersTable');if(e)e.innerHTML=owners.map(o=>uRow(o,'owner')).join('');};
 function toggleUser(k,id){const L=k==='student'?students:owners,u=L.find(x=>x.id===id);if(!u)return;if(u.active&&L.filter(x=>x.active).length<=1){alert('At least one active '+k+' account must remain.');return;}u.active=!u.active;k==='student'?renderStudents():renderOwners();saveState();}
-function resetPw(k,id){const u=(k==='student'?students:owners).find(x=>x.id===id);if(!u)return;const p=prompt('New app-local password for @'+u.username+':');if(p===null)return;if(!p.trim()){alert('Password cannot be empty.');return;}u.password=p.trim();try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}));}catch(error){console.error('Could not save local password:',error);alert('The password could not be saved in this browser.');return;}alert('App-local password updated. This does not change the Firebase Authentication password.');}
+function resetPw(k,id){if(!['student','owner'].includes(k)){alert('Only student and owner local passwords can be changed here.');return;}const u=(k==='student'?students:owners).find(x=>x.id===id);if(!u)return;const p=prompt('New local app password for @'+u.username+' (saved only in this browser):');if(p===null)return;if(!p.trim()){alert('Password cannot be empty.');return;}const oldPassword=u.password;u.password=p.trim();try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}));}catch(error){u.password=oldPassword;console.error('Could not save local password:',error);alert('The password could not be saved in this browser.');return;}alert('Local app password updated in this browser. This does not change Firebase Authentication.');}
 
 /* accessibility: labels, dialogs, skip link, Escape to close */
 function a11y(){
@@ -2185,7 +2193,7 @@ showClosedNote();
       if(Array.isArray(d.purchaseStore)){purchaseStore.splice(0,purchaseStore.length,...d.purchaseStore);}
       if(Array.isArray(d.reviews))reviews=d.reviews;
       if(Array.isArray(d.reports))reports=d.reports;
-      if(Array.isArray(d.students))students=d.students;
+      if(Array.isArray(d.students))students=mergeStudentProfiles(d.students);
       if(Array.isArray(d.owners))owners=mergeOwnerProfiles(d.owners);
       if(Array.isArray(d.admins))admins=d.admins;
       if(typeof d.parcelFee==='number')parcelFee=d.parcelFee;
@@ -2539,10 +2547,7 @@ showClosedNote();
       alert('Only an administrator can reset account passwords.');
       return;
     }
-    if(auth.currentUser && kind !== 'owner'){
-      alert('This is a Firebase account. The previous prompt method only changes local demo passwords; changing the Firebase password directly requires a secure admin backend.');
-      return;
-    }
+    if(!['owner','student'].includes(kind)){alert('Only owner and student local passwords can be changed here.');return;}
     if(resetPwLocal) resetPwLocal(kind, id);
   };
 
