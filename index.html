@@ -2018,7 +2018,7 @@ renderAdminReports=function(){
 ['tSearch','mySearch'].forEach(i=>$(i).oninput=()=>{renderAdminReports();renderReports();});['tStatus','tPrio','tSort'].forEach(i=>$(i).onchange=renderAdminReports);
 
 /* user management: activate/deactivate + reset password */
-const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Reset password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
+const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">${k==='owner'?'Email reset link':'Reset password'}</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
 renderStudents=function(){const e=$('studentsTable');if(e)e.innerHTML=students.map(s=>uRow(s,'student')).join('');};
 renderOwners=function(){const e=$('ownersTable');if(e)e.innerHTML=owners.map(o=>uRow(o,'owner')).join('');};
 function toggleUser(k,id){const L=k==='student'?students:owners,u=L.find(x=>x.id===id);if(!u)return;if(u.active&&L.filter(x=>x.active).length<=1){alert('At least one active '+k+' account must remain.');return;}u.active=!u.active;k==='student'?renderStudents():renderOwners();saveState();}
@@ -2478,6 +2478,39 @@ showClosedNote();
     const value = String(input || '').trim();
     return value.includes('@') ? value : value.toLowerCase().replace(/\s+/g, '') + '@campusbite.app';
   }
+
+  const resetPwLocal = window.resetPw;
+  window.resetPw = async function(kind, id){
+    if(kind !== 'owner'){
+      if(resetPwLocal) resetPwLocal(kind, id);
+      return;
+    }
+    if(currentRole !== 'admin' || !auth.currentUser){
+      alert('Sign in to the Firebase admin account before sending a shopkeeper reset link.');
+      return;
+    }
+    const owner = owners.find(item => String(item.id) === String(id));
+    if(!owner) return;
+    const email = String(owner.email || getAuthEmail(owner.username)).trim();
+    if(!email){
+      alert('This shopkeeper has no email/login ID. Update the account details first.');
+      return;
+    }
+    if(!confirm('Send a Firebase password reset link to ' + email + '?')) return;
+    try{
+      await auth.sendPasswordResetEmail(email);
+      alert('Password reset email sent to ' + email + '. The shopkeeper must use the link to choose a new password.');
+    }catch(error){
+      let message = 'Could not send the password reset email. Please try again.';
+      if(error.code === 'auth/user-not-found') message = 'No Firebase Authentication account was found for ' + email + '. Check the shopkeeper login ID or account setup.';
+      else if(error.code === 'auth/invalid-email') message = 'The shopkeeper email address is invalid.';
+      else if(error.code === 'auth/too-many-requests') message = 'Too many reset requests. Please wait and try again later.';
+      else if(error.code === 'auth/operation-not-allowed') message = 'Password reset is not enabled for this Firebase project.';
+      else if(error.code === 'auth/network-request-failed') message = 'Network error. Check your connection and try again.';
+      console.error('Shopkeeper password reset email failed:', error);
+      alert(message);
+    }
+  };
 
   function normalizeFoodItem(raw, fallbackOwnerId = '', fallbackShopId = DEFAULT_SHOP.id, fallbackShopName = DEFAULT_SHOP.name){
     const food = raw || {};
