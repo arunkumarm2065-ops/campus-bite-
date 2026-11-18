@@ -2635,7 +2635,7 @@ showClosedNote();
     }
   }
 
-  async function ensureUserProfile(uid, profile, email){
+  function normalizeUserProfile(uid, profile, email){
     const normalized = {
       uid,
       name: profile.name || profile.username || email || 'Campus User',
@@ -2644,11 +2644,9 @@ showClosedNote();
       active: profile.active !== false,
       shopName: profile.shopName || DEFAULT_SHOP.name,
       shopId: profile.shopId || DEFAULT_SHOP.id,
-      email: email || profile.email || '',
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      email: email || profile.email || ''
     };
     if(profile.role === 'student' && profile.className) normalized.className = profile.className;
-    await db.collection('users').doc(uid).set(normalized, { merge: true });
     return normalized;
   }
 
@@ -2730,7 +2728,7 @@ showClosedNote();
         await auth.signOut();
         throw new Error('WRONG_PORTAL');
       }
-      const safeProfile = await ensureUserProfile(cred.user.uid, profile, email);
+      const safeProfile = normalizeUserProfile(cred.user.uid, profile, email);
       currentRole = safeProfile.role;
       currentUser = {
         username: safeProfile.username,
