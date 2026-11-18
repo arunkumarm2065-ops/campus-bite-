@@ -612,6 +612,9 @@ header>div>div:last-child{min-width:0}
       <div class="space-y-3">
         <input id="foodName" class="w-full border rounded-xl px-3 py-2" placeholder="Food name">
         <select id="foodCat" class="w-full border rounded-xl px-3 py-2"><option>Meals</option><option>Snacks</option><option>Beverages</option></select>
+        <label id="foodShopField" class="hidden text-sm font-bold">Canteen
+          <select id="foodShopId" class="w-full mt-1 border rounded-xl px-3 py-2"></select>
+        </label>
         <div class="grid grid-cols-2 gap-3"><input id="foodPrice" type="number" class="border rounded-xl px-3 py-2" placeholder="Price ₹"><input id="foodStock" type="number" class="border rounded-xl px-3 py-2" placeholder="Stock count"></div>
         <input id="foodTime" class="w-full border rounded-xl px-3 py-2" placeholder="Prep time e.g. 5 min">
         <div class="border rounded-xl p-3"><label class="text-sm font-bold">Food Image</label><input id="foodImage" type="file" accept="image/*" class="w-full mt-2 text-sm"><img id="foodImagePreview" class="hidden mt-3 w-full h-32 object-cover rounded-xl"></div>
@@ -767,6 +770,8 @@ function editFood(id){
  document.getElementById('foodModalTitle').textContent='Edit Food';
  document.getElementById('foodName').value=x.name; document.getElementById('foodCat').value=x.cat;
  document.getElementById('foodPrice').value=x.price; document.getElementById('foodStock').value=x.qty||0; document.getElementById('foodTime').value=x.time||'5 min';
+ refreshFoodShopOptions(x.shopId);
+ document.getElementById('foodShopField').classList.toggle('hidden',currentRole!=='admin');
  selectedFoodImage=x.image||'';
  document.getElementById('foodImage').value='';
  const prev=document.getElementById('foodImagePreview');
@@ -1371,7 +1376,7 @@ function removeSpecialService(i){specialServiceWindows.splice(i,1);renderSpecial
 
 
 
-const seedOwner = {id:2,name:'Shop Owner 001',username:'001',email:'001@campusbite.app',password:'ok',role:'owner',shopId:'shop-001',shopName:'Your Canteen Name',active:true};
+const seedOwner = {id:2,name:'Shop Owner 001',username:'001',email:'001@campusbite.app',role:'owner',shopId:'shop-001',shopName:'Your Canteen Name',active:true};
 let owners = [
  {id:1,name:'Main Canteen Owner',username:'owner',password:'owner123',active:true},
  seedOwner
@@ -1705,6 +1710,7 @@ document.getElementById('notificationBtn').onclick=()=>{document.getElementById(
 document.getElementById('clearNotifications').onclick=()=>{notifications=[];renderNotifications();};
 document.getElementById('logoutBtn').onclick=()=>{currentRole='';document.getElementById('loginView').classList.remove('hidden');document.getElementById('logoutBtn').classList.add('hidden');document.getElementById('roleBadge').classList.add('hidden');document.getElementById('foodMenuTab').classList.add('hidden');document.getElementById('reportTab').classList.add('hidden');document.getElementById('kitchenMenuShortcut').classList.add('hidden');document.getElementById('notificationBtn').classList.add('hidden');document.getElementById('notificationPanel').classList.add('hidden');currentUser={username:'',name:''};showOnly('studentView')};
 document.getElementById('ownerAddFood').onclick=()=>{editingFoodId=null;document.getElementById('foodModalTitle').textContent='Add Food';
+refreshFoodShopOptions(currentUser?.shopId||'main-canteen');document.getElementById('foodShopField').classList.add('hidden');
 selectedFoodImage='';
 document.getElementById('foodImage').value='';
 document.getElementById('foodImagePreview').removeAttribute('src');
@@ -1807,6 +1813,7 @@ document.getElementById('ownerModalClose').onclick=()=>document.getElementById('
 document.getElementById('saveOwner').onclick=()=>{const name=document.getElementById('ownerName').value.trim(),username=document.getElementById('ownerUsername').value.trim(),password=document.getElementById('ownerPassword').value.trim();if(!name||!username||!password){alert('Fill all owner details.');return;}if(owners.some(o=>o.username===username)){alert('Username already exists.');return;}owners.push({id:Date.now(),name,username,password,active:true});document.getElementById('ownerModal').classList.add('hidden');['ownerName','ownerUsername','ownerPassword'].forEach(id=>document.getElementById(id).value='');renderOwners();};
 document.getElementById('historySearch').oninput=renderHistory;
 document.getElementById('addFoodBtn').onclick=()=>{editingFoodId=null;document.getElementById('foodModalTitle').textContent='Add Food';
+refreshFoodShopOptions('main-canteen');document.getElementById('foodShopField').classList.toggle('hidden',currentRole!=='admin');
 selectedFoodImage='';
 document.getElementById('foodImage').value='';
 document.getElementById('foodImagePreview').removeAttribute('src');
@@ -1829,6 +1836,7 @@ const $=id=>document.getElementById(id);
 const favs=new Set(), purchaseStore=[]; let currentCat='All';
 const KEY='campusbite_v1';
 function saveState(){try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}))}catch(e){}}
+function saveStateLocally(){localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}));}
 try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){menu.splice(0,menu.length,...s.menu);orders=s.orders;orderHistory=s.orderHistory;purchaseStore.push(...s.purchaseStore);reviews=s.reviews;reports=s.reports;if(Array.isArray(s.admins))admins=s.admins;students=s.students;if(Array.isArray(s.owners))owners=mergeOwnerProfiles(s.owners);parcelFee=s.parcelFee;specialServiceWindows=s.specialServiceWindows;notifications=s.notifications;(s.favs||[]).forEach(f=>favs.add(f));}}catch(e){}
 orders.forEach(o=>{if(!orderHistory.some(h=>h.token===o.token))orderHistory.push({...o,payment:'Campus Wallet',time:'12:20 PM'});});
 
@@ -1894,6 +1902,31 @@ function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&'
 function ratingOf(name){let s=0,n=0;reviews.forEach(r=>{const p=purchaseStore.find(o=>o.token===r.token);if(p&&p.items.split(' + ').some(t=>t.replace(/^\d+ × /,'')===name)){s+=r.stars;n++;}});return n?{avg:s/n,n}:null;}
 function canteenKey(item){
  return String(item?.shopName||'Main Canteen').trim()||'Main Canteen';
+}
+function getFoodShops(){
+ const shops=new Map([['main-canteen',{id:'main-canteen',name:'Main Canteen'}]]);
+ (Array.isArray(owners)?owners:[]).forEach(owner=>{
+  if(!owner)return;
+  const id=String(owner.shopId||'main-canteen').trim();
+  const name=String(owner.shopName||'Main Canteen').trim()||'Main Canteen';
+  if(id)shops.set(id,{id,name});
+ });
+ (Array.isArray(menu)?menu:[]).forEach(item=>{
+  if(!item)return;
+  const id=String(item.shopId||'main-canteen').trim();
+  const name=String(item.shopName||'Main Canteen').trim()||'Main Canteen';
+  if(id&&!shops.has(id))shops.set(id,{id,name});
+ });
+ return [...shops.values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+function refreshFoodShopOptions(selectedShopId){
+ const select=document.getElementById('foodShopId');
+ if(!select)return;
+ const shops=getFoodShops();
+ select.textContent='';
+ shops.forEach(shop=>select.add(new Option(shop.name,shop.id)));
+ const selected=String(selectedShopId||'main-canteen');
+ select.value=shops.some(shop=>shop.id===selected)?selected:'main-canteen';
 }
 function syncCanteenOptions(){
  const select=$('menuCanteen');
@@ -2694,47 +2727,30 @@ showClosedNote();
       return;
     }
 
-    const legacy = (() => {
-      const value = String(loginInput || '').trim();
-      if(!value || !password) return null;
-      if(loginRole === 'student'){
-        const match = students.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
-        if(match) return { username: match.username, name: match.name || match.username, role: 'student', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
-      }
-      if(loginRole === 'owner'){
-        const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
-        if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: match.shopId || DEFAULT_SHOP.id, shopName: match.shopName || DEFAULT_SHOP.name };
-      }
-      if(loginRole === 'admin'){
-        const normalized = value.toLowerCase().replace(/\s+/g, '');
-        const adminMatch = admins.find(user => String(user.username || '').trim().toLowerCase().replace(/\s+/g, '') === normalized && String(user.password || '') === String(password) && user.active !== false);
-        if(adminMatch) return { username: adminMatch.username, name: adminMatch.name || adminMatch.username, role: 'admin', uid: adminMatch.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
-        if(normalized === 'admin' && String(password) === '123456') return { username: 'admin', name: 'Admin', role: 'admin', uid: 'admin', shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
-      }
-      return null;
-    })();
-    if(legacy){
-      currentUser = { username: legacy.username, name: legacy.name, uid: legacy.uid || legacy.username, shopId: legacy.shopId || DEFAULT_SHOP.id, shopName: legacy.shopName || DEFAULT_SHOP.name };
-      currentRole = legacy.role;
+    const value = String(loginInput || '').trim();
+    const demo = (loginRole === 'student' && value === 'student' && password === '1234')
+      ? { username: 'student', name: 'Demo Student', role: 'student', uid: 'demo-student', shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name }
+      : (loginRole === 'owner' && value === 'owner' && password === 'owner123')
+        ? { username: 'owner', name: 'Main Canteen Owner', role: 'owner', uid: 'demo-owner', shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name }
+        : (loginRole === 'admin' && value.toLowerCase() === 'admin' && password === '123456')
+          ? { username: 'admin', name: 'Admin', role: 'admin', uid: 'demo-admin', shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name }
+          : null;
+    if(demo){
+      currentUser = demo;
+      currentRole = demo.role;
+      orders = []; myPurchases = []; orderHistory = []; notifications = []; reports = [];
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('loginError').classList.add('hidden');
       ['logoutBtn', 'roleBadge', 'notificationBtn'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.classList.remove('hidden');
       });
-      document.getElementById('studentTab').classList.toggle('hidden', currentRole !== 'student');
-      document.getElementById('myOrdersTab').classList.toggle('hidden', currentRole !== 'student');
-      document.getElementById('vendorTab').classList.toggle('hidden', currentRole === 'student');
-      document.getElementById('foodMenuTab').classList.toggle('hidden', currentRole === 'student');
-      document.getElementById('adminTab').classList.toggle('hidden', currentRole !== 'admin');
-      document.getElementById('reportTab').classList.toggle('hidden', !(currentRole === 'student' || currentRole === 'owner'));
-      document.getElementById('kitchenMenuShortcut').classList.toggle('hidden', currentRole !== 'owner');
       document.getElementById('roleBadge').textContent = { student: '🎓 ', owner: '🏪 ', admin: '🛡️ ' }[currentRole] + currentUser.name;
-      if(currentRole === 'student'){ showOnly('studentView'); renderMenu(); renderCart(); renderMyPurchases(); }
-      else if(currentRole === 'owner'){ showOnly('ownerView'); renderOwner(); }
-      else { showOnly('adminView'); openAdminSection('menu'); }
+      if(window.applyRoleTabs) window.applyRoleTabs(currentRole);
+      showOnly(currentRole === 'student' ? 'studentView' : currentRole === 'owner' ? 'ownerView' : 'adminView');
+      renderMenu(); renderOwner(); renderMyPurchases(); renderNotifications();
       updatePortalNav();
-      setStatus(true, 'Local login • demo access');
+      setStatus(true, 'Demo login • local mode');
       return;
     }
 
@@ -2818,9 +2834,9 @@ showClosedNote();
     }
   }
 
-  async function saveFoodToFirestore(){
-    if(!auth.currentUser || (currentRole !== 'owner' && currentRole !== 'admin')){
-      alert('Only an authenticated shop owner or administrator can update the menu.');
+  async function saveFoodItem(){
+    if((currentRole !== 'owner' && currentRole !== 'admin') || (!auth.currentUser && currentRole !== 'admin')){
+      alert('Only an administrator or authenticated shop owner can update the menu.');
       return;
     }
     const name = document.getElementById('foodName').value.trim();
@@ -2841,6 +2857,21 @@ showClosedNote();
       alert('You can only edit food belonging to your shop.');
       return;
     }
+    let targetShop={
+      id:String(existing?.shopId||currentUser?.shopId||DEFAULT_SHOP.id),
+      name:String(existing?.shopName||currentUser?.shopName||DEFAULT_SHOP.name)
+    };
+    if(currentRole==='admin'){
+      const selectedShopId=document.getElementById('foodShopId').value;
+      const selectedShop=getFoodShops().find(shop=>shop.id===selectedShopId);
+      if(!selectedShop){
+        alert('Select a canteen for this menu item.');
+        return;
+      }
+      targetShop=selectedShop;
+    }
+    const shopOwner=owners.find(owner=>String(owner.shopId||DEFAULT_SHOP.id)===targetShop.id);
+    const keepExistingOwner=existing&&String(existing.shopId||DEFAULT_SHOP.id)===targetShop.id;
     const previous = existing ? { ...existing } : null;
     const payload = {
       id: existing ? existing.id : 'food-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
@@ -2854,22 +2885,29 @@ showClosedNote();
       time,
       image: selectedFoodImage || '',
       emoji: '🍽️',
-      ownerId: existing?.ownerId || auth.currentUser.uid,
-      shopId: currentUser?.shopId || DEFAULT_SHOP.id,
-      shopName: currentUser?.shopName || DEFAULT_SHOP.name,
+      ownerId: (keepExistingOwner&&existing.ownerId) || shopOwner?.uid || shopOwner?.username || (currentUser?.shopId===targetShop.id?currentUser.uid:'') || auth.currentUser?.uid || '',
+      shopId: targetShop.id,
+      shopName: targetShop.name,
       active: true,
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date()
     };
     if(existing) Object.assign(existing, payload);
     else menu.push(payload);
-    if(!await window.saveState(true)){
+    let saved=true;
+    if(auth.currentUser){
+      saved=await window.saveState(true);
+    }else{
+      try{saveStateLocally();}
+      catch(error){console.error('Could not save local menu item:',error);saved=false;}
+    }
+    if(!saved){
       if(existing) Object.assign(existing, previous);
       else {
         const index = menu.findIndex(item => item.id === payload.id);
         if(index >= 0) menu.splice(index, 1);
       }
-      alert('Menu changes could not be synced to Firestore. Please try again.');
+      alert(auth.currentUser?'Menu changes could not be synced to Firestore. Please try again.':'Menu changes could not be saved in this browser.');
       return;
     }
     closeFoodModal();
@@ -2901,7 +2939,7 @@ showClosedNote();
 
   document.getElementById('loginBtn').onclick = firebaseLogin;
   document.getElementById('loginPass').onkeydown = e => { if(e.key === 'Enter') firebaseLogin(); };
-  document.getElementById('saveFood').onclick = saveFoodToFirestore;
+  document.getElementById('saveFood').onclick = saveFoodItem;
   const placeOrderBtn = document.getElementById('placeOrder');
   const paymentRadios = document.querySelectorAll('input[name="pay"]');
   const pickupRadios = document.querySelectorAll('input[name="pickupType"]');
