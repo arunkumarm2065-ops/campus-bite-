@@ -2,17 +2,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isAdmin() {
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isActiveUser() {
       return signedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+        userDoc().active == true;
+    }
+    function isAdmin() {
+      return isActiveUser() && userDoc().role == 'admin';
     }
 
     match /users/{userId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && (request.auth.uid == userId || isAdmin());
-      allow update: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'username', 'email', 'shopName', 'shopId', 'className', 'updatedAt']) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.active == resource.data.active &&
+        (resource.data.role != 'owner' || request.resource.data.shopId == resource.data.shopId)
+      );
       allow delete: if isAdmin();
     }
 
@@ -24,31 +37,54 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       function orderBelongsToStudent() {
-        return signedIn() &&
+        return isActiveUser() &&
+          userDoc().role == 'student' &&
           resource.data.studentId == request.auth.uid;
       }
       function orderBelongsToOwnerShop() {
-        return signedIn() &&
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner' &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.shopId == resource.data.shopId;
+        return isActiveUser() &&
+          userDoc().role == 'owner' &&
+          (
+            resource.data.get('ownerId', '') == request.auth.uid ||
+            (
+              userDoc().get('shopId', '') != '' &&
+              userDoc().get('shopId', '') == resource.data.get('shopId', '')
+            )
+          );
       }
-      function isOwnerCancellation() {
-        return signedIn() &&
-          request.auth.uid == resource.data.ownerId &&
-          request.resource.data.status == 'Cancelled' &&
-          request.resource.data.cancelledBy == request.auth.uid &&
-          request.resource.data.cancelledByRole == 'owner' &&
-          request.resource.data.stockRestored == true;
+      function ownerCanUpdateOrder() {
+        return orderBelongsToOwnerShop() && (
+          (
+            resource.data.status == 'Preparing' &&
+            request.resource.data.status == 'Ready' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'counter', 'updatedAt'])
+          ) ||
+          (
+            resource.data.status == 'Ready' &&
+            request.resource.data.status == 'Completed' &&
+            request.resource.data.completedBy == request.auth.uid &&
+            request.resource.data.completedByRole == 'owner' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'completedAt', 'completedBy', 'completedByRole', 'updatedAt'])
+          ) ||
+          (
+            !(resource.data.status in ['Cancelled', 'Refunded']) &&
+            request.resource.data.status == 'Cancelled' &&
+            request.resource.data.cancelledBy == request.auth.uid &&
+            request.resource.data.cancelledByRole == 'owner' &&
+            request.resource.data.stockRestored == true &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'cancelReason', 'cancelledBy', 'cancelledByRole', 'cancelledAt', 'updatedAt', 'stockRestored'])
+          )
+        );
       }
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update: if signedIn() && (
-        orderBelongsToStudent() ||
-        orderBelongsToOwnerShop() ||
-        isOwnerCancellation() ||
-        isAdmin()
-      );
+      allow read: if orderBelongsToStudent() || orderBelongsToOwnerShop() || isAdmin();
+      allow create: if isActiveUser() &&
+        userDoc().role == 'student' &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.status == 'Preparing';
+      allow update: if isAdmin() || ownerCanUpdateOrder();
       allow delete: if isAdmin();
     }
 

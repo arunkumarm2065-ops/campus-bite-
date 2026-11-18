@@ -271,7 +271,19 @@ header>div>div:last-child{min-width:0}
     </section>
 
 
-    <div class="flex flex-col sm:flex-row gap-2 mt-5"><input id="menuSearch" type="search" placeholder="Search for dishes…" class="flex-1 border rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-orange-200"><select id="menuSort" class="border rounded-xl px-3 py-3 bg-white font-bold text-sm"><option value="pop">Sort: Default</option><option value="rate">Top rated</option><option value="low">Price: Low → High</option><option value="high">Price: High → Low</option></select></div>
+    <div class="flex flex-col sm:flex-row gap-2 mt-5">
+      <input id="menuSearch" type="search" placeholder="Search for dishes…" class="flex-1 border rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-orange-200">
+      <select id="menuCanteen" aria-label="Filter by canteen" class="border rounded-xl px-3 py-3 bg-white font-bold text-sm">
+        <option value="All">All Canteens</option>
+      </select>
+      <select id="menuSort" aria-label="Sort dishes" class="border rounded-xl px-3 py-3 bg-white font-bold text-sm">
+        <option value="pop">Sort: Default</option>
+        <option value="most_bought">🔥 Most Popular</option>
+        <option value="rate">Top rated</option>
+        <option value="low">Price: Low → High</option>
+        <option value="high">Price: High → Low</option>
+      </select>
+    </div>
     <div class="flex gap-2 overflow-x-auto py-5">
       <button class="cat-btn active px-4 py-2 rounded-full bg-slate-900 text-white font-bold text-sm" data-cat="All">All</button>
       <button class="cat-btn px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-sm" data-cat="Meals">Meals</button>
@@ -630,6 +642,8 @@ header>div>div:last-child{min-width:0}
       <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-black">Add Shop Owner</h3><button id="ownerModalClose" class="w-9 h-9 rounded-xl bg-slate-100">×</button></div>
       <div class="space-y-3">
         <input id="ownerName" class="w-full border rounded-xl px-3 py-2" placeholder="Owner name">
+        <input id="ownerShopName" class="w-full border rounded-xl px-3 py-2" placeholder="Canteen name">
+        <input id="ownerShopId" class="w-full border rounded-xl px-3 py-2" placeholder="Shop ID (lowercase letters, numbers, hyphens)">
         <input id="ownerUsername" class="w-full border rounded-xl px-3 py-2" placeholder="Login username">
         <input id="ownerPassword" class="w-full border rounded-xl px-3 py-2" placeholder="Auth password (create in Firebase Auth)">
         <button id="saveOwner" class="w-full py-3 rounded-xl bg-slate-900 text-white font-black">Add Owner</button>
@@ -748,6 +762,7 @@ function renderHistory(){
 }
 function editFood(id){
  const x=menu.find(m=>m.id===id); if(!x)return;
+ if(currentRole==='owner'&&!isCurrentOwnersItem(x)){alert('You can only edit food belonging to your shop.');return;}
  editingFoodId=id;
  document.getElementById('foodModalTitle').textContent='Edit Food';
  document.getElementById('foodName').value=x.name; document.getElementById('foodCat').value=x.cat;
@@ -1076,13 +1091,7 @@ async function cancelOrderByOwner(orderId){
     return;
   }
   const actingUserId = (typeof auth !== 'undefined' && auth && auth.currentUser ? auth.currentUser.uid : null) || currentUser?.uid || currentUser?.username || 'local-owner';
-  const assignedShopId = currentUser?.shopId || DEFAULT_SHOP.id;
-  const orderShopId = String(order.shopId || '');
-  const orderOwnerId = String(order.ownerId || '');
-  const sameShop = !orderShopId || !assignedShopId || orderShopId === String(assignedShopId);
-  const sameOwner = !orderOwnerId || !actingUserId || orderOwnerId === String(actingUserId);
-  const canCancel = sameShop || sameOwner;
-  if(!canCancel){
+  if(!isCurrentOwnersOrder(order)){
     alert('You can only cancel orders from your own shop.');
     return;
   }
@@ -1105,9 +1114,7 @@ async function cancelOrderByOwner(orderId){
         if(['Cancelled','Refunded'].includes(currentStatus)){
           throw new Error('This order has already been cancelled or refunded.');
         }
-        const currentShopId = currentUser?.shopId || DEFAULT_SHOP.id;
-        const isOwnerMatch = String(currentData.shopId || '') === String(currentShopId) || String(currentData.ownerId || '') === String(actingUserId);
-        if(!isOwnerMatch){
+        if(!isCurrentOwnersOrder(currentData)){
           throw new Error('You can only cancel orders from your own shop.');
         }
         const restoreFlag = currentData.stockRestored === true;
@@ -1177,7 +1184,7 @@ async function cancelOrderByOwner(orderId){
       myPurchases[myOrderIndex].updatedAt = new Date();
     }
     if (typeof createOrderCancellationNotification === 'function') {
-      await createOrderCancellationNotification({ ...order, studentId: order.studentId, token: order.token, shopName: order.shopName || DEFAULT_SHOP.name }, reasonText);
+      await createOrderCancellationNotification({ ...order, studentId: order.studentId, token: order.token, shopName: order.shopName || currentUser?.shopName || 'Main Canteen' }, reasonText);
     }
     if (typeof window.saveState === 'function') {
       await window.saveState(true);
@@ -1212,12 +1219,7 @@ window.completeOrder = async function(orderKey){
   }
   const actingUserId = (typeof auth !== 'undefined' && auth && auth.currentUser ? auth.currentUser.uid : null) || currentUser?.uid || currentUser?.username || 'local-user';
   if(currentRole === 'owner'){
-    const shopId = currentUser?.shopId || DEFAULT_SHOP.id;
-    const orderShopId = String(order.shopId || '');
-    const orderOwnerId = String(order.ownerId || '');
-    const sameShop = !orderShopId || !shopId || orderShopId === String(shopId);
-    const sameOwner = !orderOwnerId || !actingUserId || orderOwnerId === String(actingUserId);
-    if(!(sameShop || sameOwner)){
+    if(!isCurrentOwnersOrder(order)){
       alert('You can only complete your own shop orders.');
       return;
     }
@@ -1271,7 +1273,8 @@ window.completeOrder = async function(orderKey){
 let kitchenRenderedOnce=false,kitchenOrderKeys=new Set();
 function renderOrders(){
  const currentKeys=new Set();
- const html=orders.map((o,i)=>{
+ const visibleOrders=orders.map((o,index)=>({o,index})).filter(({o})=>currentRole!=='owner'||isCurrentOwnersOrder(o));
+ const html=visibleOrders.map(({o,index:i})=>{
    const key=String(o.id||o.token||i);
    const isNew=kitchenRenderedOnce&&!kitchenOrderKeys.has(key);
    currentKeys.add(key);
@@ -1291,8 +1294,8 @@ function renderOrders(){
  document.getElementById('orders').innerHTML=html;
  kitchenOrderKeys=currentKeys;
  kitchenRenderedOnce=true;
- setMotionText(document.getElementById('pendingCount'),orders.filter(o=>o.status==='Preparing').length);
- setMotionText(document.getElementById('readyCount'),orders.filter(o=>o.status==='Ready').length);
+ setMotionText(document.getElementById('pendingCount'),visibleOrders.filter(({o})=>o.status==='Preparing').length);
+ setMotionText(document.getElementById('readyCount'),visibleOrders.filter(({o})=>o.status==='Ready').length);
  lucide.createIcons();
 }
 document.querySelectorAll('.cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('bg-slate-900','text-white'));document.querySelectorAll('.cat-btn').forEach(x=>x.classList.add('bg-white','border','border-slate-200'));b.classList.remove('bg-white','border','border-slate-200');b.classList.add('bg-slate-900','text-white');renderMenu(b.dataset.cat)});
@@ -1528,6 +1531,15 @@ function removeStudent(id){
 }
 
 let loginRole='student', currentRole='', currentUser={username:'',name:''};
+function isCurrentOwnersItem(item){
+ if(!item||currentRole!=='owner'||!currentUser)return false;
+ let uid=currentUser.uid||'';
+ if(window.firebase&&typeof firebase.auth==='function')uid=firebase.auth().currentUser?.uid||uid;
+ const shopId=String(currentUser.shopId||'');
+ if((shopId&&item.shopId&&String(item.shopId)===shopId)||(uid&&item.ownerId&&String(item.ownerId)===String(uid)))return true;
+ return !item.shopId&&!item.ownerId&&shopId==='main-canteen';
+}
+function isCurrentOwnersOrder(order){return isCurrentOwnersItem(order);}
 function showOnly(id){
  const allowed = {
    studentView: ['student','owner','admin'],
@@ -1558,14 +1570,19 @@ function updatePortalNav(){
  if(role==='owner'){admin.classList.add('opacity-50');}
 }
 function renderOwner(){
+ const shopMenu=menu.filter(isCurrentOwnersItem);
+ const shopOrders=orders.filter(isCurrentOwnersOrder);
+ const shopHistory=orderHistory.filter(isCurrentOwnersOrder);
+ const title=document.querySelector('#ownerView h2');
+ if(title&&currentUser?.shopName)title.textContent=currentUser.shopName;
  const feeInput=document.getElementById('ownerParcelFee'); if(feeInput) feeInput.value=parcelFee;
  const feeStatus=document.getElementById('parcelFeeStatus'); if(feeStatus) feeStatus.textContent='Current parcel charge: ₹'+parcelFee;
- const stock=menu.reduce((a,x)=>a+(x.qty||0),0), low=menu.filter(x=>(x.qty||0)>0&&(x.qty||0)<=10).length;
- setMotionText(document.getElementById('ownerOrders'),orderHistory.length+orders.length);
+ const stock=shopMenu.reduce((a,x)=>a+(x.qty||0),0), low=shopMenu.filter(x=>(x.qty||0)>0&&(x.qty||0)<=10).length;
+ setMotionText(document.getElementById('ownerOrders'),shopHistory.length+shopOrders.length);
  setMotionText(document.getElementById('ownerStock'),stock);
  setMotionText(document.getElementById('ownerLow'),low);
- setMotionText(document.getElementById('ownerRevenue'),'₹'+orderHistory.filter(x=>x.status!=='Refunded').reduce((a,x)=>a+x.total,0));
- document.getElementById('ownerMenu').innerHTML=menu.map(x=>`<div class="management-card border rounded-xl p-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
+ setMotionText(document.getElementById('ownerRevenue'),'₹'+shopHistory.filter(x=>!['Refunded','Cancelled'].includes(x.status)).reduce((a,x)=>a+x.total,0));
+ document.getElementById('ownerMenu').innerHTML=shopMenu.map(x=>`<div class="management-card border rounded-xl p-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
    <div class="flex items-center gap-3 min-w-0">
      ${x.image?`<img src="${x.image}" class="w-14 h-14 rounded-xl object-cover">`:`<span class="w-14 h-14 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji||'🍽️'}</span>`}
      <div><b>${x.name}</b><p class="text-xs text-slate-500">${x.cat} • ₹${x.price} • ${x.time||'5 min'}</p></div>
@@ -1580,7 +1597,7 @@ function renderOwner(){
  </div>`).join('');
  document.querySelectorAll('[data-owner-stock]').forEach(inp=>inp.onchange=()=>{
    const x=menu.find(m=>m.id==inp.dataset.ownerStock);
-   if(x){x.qty=Math.max(0,+inp.value||0);renderOwner();renderAdmin();renderMenu();}
+   if(x&&isCurrentOwnersItem(x)){x.qty=Math.max(0,+inp.value||0);renderOwner();renderAdmin();renderMenu();}
  });
 
 }
@@ -1802,10 +1819,10 @@ orders.forEach(o=>{if(!orderHistory.some(h=>h.token===o.token))orderHistory.push
 
 /* strip < > " from typed text so nothing can inject HTML */
 document.addEventListener('click',e=>{if(!e.target.closest('#saveFood,#submitReport,#submitReview,#saveStudent,#saveOwner,#saveAdmin,#addSpecialServiceBtn'))return;
- ['foodName','foodTime','reportSubject','reportToken','reportDetails','reportContact','reviewComment','studentName','studentUsername','studentClass','ownerName','ownerUsername','adminName','adminUsername','specialServiceName'].forEach(f=>{const i=$(f);if(i)i.value=i.value.replace(/[<>"]/g,'');});},true);
+ ['foodName','foodTime','reportSubject','reportToken','reportDetails','reportContact','reviewComment','studentName','studentUsername','studentClass','ownerName','ownerShopName','ownerShopId','ownerUsername','adminName','adminUsername','specialServiceName'].forEach(f=>{const i=$(f);if(i)i.value=i.value.replace(/[<>"]/g,'');});},true);
 
 function renderAll(){renderMenu();renderCart();renderOrders();renderAdmin();renderOwner();renderHistory();renderMyPurchases();renderNotifications();renderAdmins();saveState();lucide.createIcons();}
-function removeFood(id){const x=menu.find(m=>m.id===id);if(!x||!confirm('Remove '+x.name+' from the menu?'))return;menu.splice(menu.indexOf(x),1);cart=cart.filter(c=>c.id!==id);favs.delete(id);renderAll();}
+function removeFood(id){const x=menu.find(m=>m.id===id);if(!x)return;if(currentRole==='owner'&&!isCurrentOwnersItem(x)){alert('You can only remove food belonging to your shop.');return;}if(!confirm('Remove '+x.name+' from the menu?'))return;menu.splice(menu.indexOf(x),1);cart=cart.filter(c=>c.id!==id);favs.delete(id);renderAll();}
 function refundOrder(token){
  const h=orderHistory.find(o=>o.token===token);if(!h||h.status==='Refunded'||!confirm('Refund '+token+' (₹'+h.total+')?'))return;
  if(h.status==='Preparing')h.items.split(' + ').forEach(p=>{const m=p.match(/^(\d+) × (.+)$/),f=m&&menu.find(x=>x.name===m[2]);if(f)f.qty=(f.qty||0)+ +m[1];});
@@ -1855,24 +1872,100 @@ $('logoutBtn').onclick=()=>{currentRole='';currentUser={username:'',name:''};car
 /* live status + counts */
 const _rc=renderCart;renderCart=function(){_rc();updateServiceStatus();};
 const _uss=updateServiceStatus;updateServiceStatus=function(){_uss();const c=$('countdown');if(c&&c.previousSibling)c.previousSibling.textContent=isCanteenOpenNow()?'Break ends in ':'';};
-const _ro=renderOwner;renderOwner=function(){_ro();setMotionText($('ownerOrders'),orderHistory.length);};
 setInterval(updateServiceStatus,1000);setInterval(saveState,3000);addEventListener('beforeunload',saveState);
 
 /* Swiggy/Zomato-style menu: search, sort, ratings, favourites, qty stepper */
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 function ratingOf(name){let s=0,n=0;reviews.forEach(r=>{const p=purchaseStore.find(o=>o.token===r.token);if(p&&p.items.split(' + ').some(t=>t.replace(/^\d+ × /,'')===name)){s+=r.stars;n++;}});return n?{avg:s/n,n}:null;}
+function canteenKey(item){
+ return String(item?.shopName||'Main Canteen').trim()||'Main Canteen';
+}
+function syncCanteenOptions(){
+ const select=$('menuCanteen');
+ if(!select)return 'All';
+ const selected=select.value||'All';
+ const canteens=new Map();
+ (Array.isArray(owners)?owners:[]).forEach(owner=>{
+  if(owner&&owner.active!==false&&owner.shopName){
+   const name=String(owner.shopName).trim();
+   if(name&&!canteens.has(name))canteens.set(name,name);
+  }
+ });
+ menu.filter(item=>item.active!==false).forEach(item=>{
+  const key=canteenKey(item);
+  if(!canteens.has(key))canteens.set(key,key);
+ });
+ select.textContent='';
+ select.add(new Option('All Canteens','All'));
+ [...canteens.entries()].sort((a,b)=>a[1].localeCompare(b[1])).forEach(([key,name])=>select.add(new Option(name,key)));
+ select.value=canteens.has(selected)?selected:'All';
+ return select.value;
+}
+function getOrderFrequencyMap(){
+ const source=[].concat(
+  Array.isArray(orders)?orders:[],
+  Array.isArray(orderHistory)?orderHistory:[],
+  Array.isArray(purchaseStore)?purchaseStore:[]
+ );
+ const seen=new Set();
+ const counts=new Map();
+ source.forEach(order=>{
+  if(!order||['Cancelled','Refunded'].includes(order.status))return;
+  const key=String(order.token||order.id||'');
+  if(key&&seen.has(key))return;
+  if(key)seen.add(key);
+  const items=Array.isArray(order.itemDetails)&&order.itemDetails.length?order.itemDetails:Array.isArray(order.items)?order.items:null;
+  if(items){
+   items.forEach(item=>{
+    const name=String(item.name||'').trim().toLowerCase();
+    const quantity=Number(item.quantity||item.qty||1);
+    if(name)counts.set(name,(counts.get(name)||0)+(Number.isFinite(quantity)&&quantity>0?quantity:1));
+   });
+   return;
+  }
+  String(order.items||'').split(' + ').forEach(part=>{
+   const match=part.match(/^(\d+)\s×\s(.+)$/);
+   if(match){
+    const name=match[2].trim().toLowerCase();
+    if(name)counts.set(name,(counts.get(name)||0)+(Number(match[1])||1));
+   }
+  });
+ });
+ return counts;
+}
 function toggleFav(id){favs.has(id)?favs.delete(id):favs.add(id);renderMenu();saveState();}
 function renderMenu(filter){
- if(filter)currentCat=filter;const el=$('menu');if(!el)return;
- const q=($('menuSearch')?.value||'').toLowerCase(),sort=$('menuSort')?.value||'pop',R=x=>ratingOf(x.name)?.avg||0;
- const list=menu.filter(x=>(currentCat==='All'||(currentCat==='Favorites'?favs.has(x.id):x.cat===currentCat))&&x.name.toLowerCase().includes(q));
- if(sort==='low')list.sort((a,b)=>a.price-b.price);else if(sort==='high')list.sort((a,b)=>b.price-a.price);else if(sort==='rate')list.sort((a,b)=>R(b)-R(a));
+ if(filter)currentCat=filter;
+ const el=$('menu');if(!el)return;
+ const q=($('menuSearch')?.value||'').trim().toLowerCase();
+ const sort=$('menuSort')?.value||'pop';
+ const rating=x=>ratingOf(x.name)?.avg||0;
+ const selectedCanteen=syncCanteenOptions();
+ const frequencyMap=getOrderFrequencyMap();
+ const boughtCount=x=>frequencyMap.get(String(x.name||'').trim().toLowerCase())||0;
+ const list=menu.filter(x=>
+  x.active!==false&&
+  (selectedCanteen==='All'||canteenKey(x)===selectedCanteen)&&
+  (currentCat==='All'||(currentCat==='Favorites'?favs.has(x.id):x.cat===currentCat))&&
+  (!q||String(x.name||'').toLowerCase().includes(q)||canteenKey(x).toLowerCase().includes(q))
+ );
+ if(sort==='low')list.sort((a,b)=>a.price-b.price);
+ else if(sort==='high')list.sort((a,b)=>b.price-a.price);
+ else if(sort==='rate')list.sort((a,b)=>rating(b)-rating(a));
+ else if(sort==='most_bought')list.sort((a,b)=>boughtCount(b)-boughtCount(a)||rating(b)-rating(a));
  el.innerHTML=list.length?list.map(x=>{
-  const c=cart.find(i=>String(i.id)===String(x.id)),r=ratingOf(x.name),q_=x.qty||0,st=q_<=0?'Out of Stock':q_<=10?'Low Stock':'In Stock',sc=q_<=0?'text-red-600':q_<=10?'text-amber-600':'text-emerald-600',idArg=inlineArg(x.id);
-  return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><h4 class="font-black">${x.name}</h4><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${x.time||'5 min'}<span>🏪 ${escapeHtml(x.shopName || 'Main Canteen')}</span>${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
+  const c=cart.find(i=>String(i.id)===String(x.id));
+  const r=ratingOf(x.name);
+  const q_=x.qty||0;
+  const st=q_<=0?'Out of Stock':q_<=10?'Low Stock':'In Stock';
+  const sc=q_<=0?'text-red-600':q_<=10?'text-amber-600':'text-emerald-600';
+  const idArg=inlineArg(x.id);
+  return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><div class="min-w-0"><h4 class="font-black">${escapeHtml(x.name)}</h4><p class="text-[11px] lowercase tracking-wide text-slate-400 font-semibold mt-0.5">${escapeHtml(canteenKey(x).toLowerCase())}</p></div><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${escapeHtml(x.time||'5 min')}${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
  }).join(''):'<p class="col-span-full text-center text-slate-400 py-10">No dishes found.</p>';
- lucide.createIcons();}
+ lucide.createIcons();
+}
 $('menuSearch').oninput=()=>renderMenu();$('menuSort').onchange=()=>renderMenu();
+$('menuCanteen').onchange=()=>renderMenu();
 
 /* reorder */
 function reorder(o){for(const p of o.items.split(' + ')){const m=p.match(/^(\d+) × (.+)$/),f=m&&menu.find(x=>x.name===m[2]);if(f)for(let k=0;k<+m[1];k++)if(!add(f.id))break;}openCart();}
@@ -1925,7 +2018,7 @@ renderAdminReports=function(){
 ['tSearch','mySearch'].forEach(i=>$(i).oninput=()=>{renderAdminReports();renderReports();});['tStatus','tPrio','tSort'].forEach(i=>$(i).onchange=renderAdminReports);
 
 /* user management: activate/deactivate + reset password */
-const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${u.name}</b><p class="text-xs text-slate-500">@${u.username}${u.className?' • '+u.className:''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Reset password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
+const uRow=(u,k)=>`<div class="user-management-card border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><b>${escapeHtml(u.name)}</b><p class="text-xs text-slate-500">@${escapeHtml(u.username)}${u.className?' • '+escapeHtml(u.className):''}${k==='owner'?' • 🏪 '+escapeHtml(u.shopName||'Main Canteen'):''} • ${u.active?'Active':'Disabled'}</p></div><div class="flex flex-wrap gap-2"><button onclick="toggleUser('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-slate-100 font-bold text-sm">${u.active?'Deactivate':'Activate'}</button><button onclick="resetPw('${k}',${u.id})" class="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 font-bold text-sm">Reset password</button><button onclick="${k==='student'?'removeStudent':'removeOwner'}(${u.id})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm">Remove</button></div></div>`;
 renderStudents=function(){const e=$('studentsTable');if(e)e.innerHTML=students.map(s=>uRow(s,'student')).join('');};
 renderOwners=function(){const e=$('ownersTable');if(e)e.innerHTML=owners.map(o=>uRow(o,'owner')).join('');};
 function toggleUser(k,id){const L=k==='student'?students:owners,u=L.find(x=>x.id===id);if(!u)return;if(u.active&&L.filter(x=>x.active).length<=1){alert('At least one active '+k+' account must remain.');return;}u.active=!u.active;k==='student'?renderStudents():renderOwners();saveState();}
@@ -2218,7 +2311,7 @@ showClosedNote();
   $('passwordResetBtn').onclick=sendPasswordReset;
 
   /* Admin creates a real Firebase Auth account without logging the admin out. */
-  async function createPortalAccount(role,name,username,password,className){
+  async function createPortalAccount(role,name,username,password,className,shop=null){
     if(!fbAuth.currentUser||currentRole!=='admin')throw new Error('ADMIN_ONLY');
     if(!['student','owner','admin'].includes(role))throw new Error('INVALID_ROLE');
     if(password.length<6)throw new Error('PASSWORD_SHORT');
@@ -2231,7 +2324,10 @@ showClosedNote();
       const cred=await auth2.createUserWithEmailAndPassword(email,password);
       const profile={uid:cred.user.uid,id:Date.now(),name,username,email,role,active:true};
       if(role==='student')profile.className=className||'';
-      if(role==='owner'){profile.shopId='main-canteen';profile.shopName='Main Canteen';}
+      if(role==='owner'){
+        profile.shopId=shop?.id||'main-canteen';
+        profile.shopName=shop?.name||'Main Canteen';
+      }
       await userRef(cred.user.uid).set(profile);
       await auth2.signOut();
       return profile;
@@ -2258,16 +2354,17 @@ showClosedNote();
   }
 
   async function adminAddOwner(){
-    const name=$('ownerName').value.trim(),username=$('ownerUsername').value.trim(),password=$('ownerPassword').value.trim();
-    if(!name||!username||!password){alert('Fill all owner details.');return;}
+    const name=$('ownerName').value.trim(),shopName=$('ownerShopName').value.trim(),shopId=$('ownerShopId').value.trim().toLowerCase(),username=$('ownerUsername').value.trim(),password=$('ownerPassword').value.trim();
+    if(!name||!shopName||!shopId||!username||!password){alert('Fill all owner and canteen details.');return;}
+    if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(shopId)){alert('Shop ID must contain lowercase letters, numbers, and single hyphens only.');return;}
     if(password.length<6){alert('Firebase passwords must contain at least 6 characters.');return;}
     if(owners.some(o=>o.username===username)){alert('Owner username already exists.');return;}
     const btn=$('saveOwner');btn.disabled=true;btn.textContent='Creating account…';
     try{
-      const profile=await createPortalAccount('owner',name,username,password,'');
+      const profile=await createPortalAccount('owner',name,username,password,'',{id:shopId,name:shopName});
       const safe={...profile};delete safe.password;owners.push(safe);
       await saveState(true);renderOwners();$('ownerModal').classList.add('hidden');
-      ['ownerName','ownerUsername','ownerPassword'].forEach(id=>$(id).value='');
+      ['ownerName','ownerShopName','ownerShopId','ownerUsername','ownerPassword'].forEach(id=>$(id).value='');
       alert('Owner account created.\nLogin ID: '+username+'\nPassword: the password you entered.');
     }catch(e){
       if(e.code==='auth/email-already-in-use')alert('That username is already registered.');
@@ -2706,7 +2803,7 @@ showClosedNote();
       alert('This menu item is no longer available. Refresh the menu and try again.');
       return;
     }
-    if(existing && currentRole === 'owner' && existing.ownerId && existing.ownerId !== auth.currentUser.uid){
+    if(existing && currentRole === 'owner' && !isCurrentOwnersItem(existing)){
       alert('You can only edit food belonging to your shop.');
       return;
     }
@@ -2835,18 +2932,12 @@ showClosedNote();
 
       let ownerId = ownerIds[0] || '';
       if(!ownerId){
-        const ownerSnapshot = await db.collection('users')
-          .where('role', '==', 'owner')
-          .get();
-        const ownerDoc = ownerSnapshot.docs.find(doc => (doc.data().shopId || DEFAULT_SHOP.id) === shopId);
-        if(!ownerDoc) throw new Error('The shop owner profile could not be found. Please contact the canteen administrator.');
-        ownerId = ownerDoc.id;
+        throw new Error('This menu item is missing its shop owner assignment. Please ask the canteen administrator to update the menu.');
       }
 
       const orderRef = db.collection('orders').doc();
       const stateRef = db.collection('campusbite').doc('state');
-      const savedOrders = await db.collection('orders').get();
-      const existingTokens = orders.concat(orderHistory, savedOrders.docs.map(doc => doc.data()))
+      const existingTokens = orders.concat(orderHistory)
         .map(order => Number(String(order.token || '').match(/(\d+)$/)?.[1] || 0))
         .filter(number => Number.isInteger(number) && number >= 0 && number <= 999999);
       const highestExistingNumber = existingTokens.reduce((highest, number) => Math.max(highest, number), 0);
@@ -2984,6 +3075,10 @@ showClosedNote();
   window.ready = function(i){
     const order = orders[Number(i)] || null;
     if(!order){ return; }
+    if(currentRole==='owner'&&!isCurrentOwnersOrder(order)){
+      alert('You can only update orders from your own shop.');
+      return;
+    }
     const readyButton = document.querySelector('[data-ready-index="' + i + '"]');
     if(readyButton){
       readyButton.disabled = true;
