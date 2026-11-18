@@ -1371,9 +1371,18 @@ function removeSpecialService(i){specialServiceWindows.splice(i,1);renderSpecial
 
 
 
+const seedOwner = {id:2,name:'Shop Owner 001',username:'001',email:'001@campusbite.app',password:'ok',role:'owner',shopId:'shop-001',shopName:'Your Canteen Name',active:true};
 let owners = [
- {id:1,name:'Main Canteen Owner',username:'owner',password:'owner123',active:true}
+ {id:1,name:'Main Canteen Owner',username:'owner',password:'owner123',active:true},
+ seedOwner
 ];
+function mergeOwnerProfiles(profiles){
+ const merged=Array.isArray(profiles)?profiles.map(profile=>({...profile})):[];
+ const existingIndex=merged.findIndex(profile=>String(profile.username||'')==='001');
+ if(existingIndex>=0)merged[existingIndex]={...merged[existingIndex],...seedOwner};
+ else merged.push({...seedOwner});
+ return merged;
+}
 let notifications = [];
 let selectedFoodImage = '';
 const CANCELLABLE_STATUSES = new Set(['Preparing','Confirmed','Accepted']);
@@ -1814,7 +1823,7 @@ const $=id=>document.getElementById(id);
 const favs=new Set(), purchaseStore=[]; let currentCat='All';
 const KEY='campusbite_v1';
 function saveState(){try{localStorage.setItem(KEY,JSON.stringify({menu,orders,orderHistory,purchaseStore,reviews,reports,admins,students,owners,parcelFee,specialServiceWindows,notifications,favs:[...favs]}))}catch(e){}}
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){menu.splice(0,menu.length,...s.menu);orders=s.orders;orderHistory=s.orderHistory;purchaseStore.push(...s.purchaseStore);reviews=s.reviews;reports=s.reports;if(Array.isArray(s.admins))admins=s.admins;students=s.students;owners=s.owners;parcelFee=s.parcelFee;specialServiceWindows=s.specialServiceWindows;notifications=s.notifications;(s.favs||[]).forEach(f=>favs.add(f));}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){menu.splice(0,menu.length,...s.menu);orders=s.orders;orderHistory=s.orderHistory;purchaseStore.push(...s.purchaseStore);reviews=s.reviews;reports=s.reports;if(Array.isArray(s.admins))admins=s.admins;students=s.students;if(Array.isArray(s.owners))owners=mergeOwnerProfiles(s.owners);parcelFee=s.parcelFee;specialServiceWindows=s.specialServiceWindows;notifications=s.notifications;(s.favs||[]).forEach(f=>favs.add(f));}}catch(e){}
 orders.forEach(o=>{if(!orderHistory.some(h=>h.token===o.token))orderHistory.push({...o,payment:'Campus Wallet',time:'12:20 PM'});});
 
 /* strip < > " from typed text so nothing can inject HTML */
@@ -2138,7 +2147,7 @@ showClosedNote();
       if(Array.isArray(d.reviews))reviews=d.reviews;
       if(Array.isArray(d.reports))reports=d.reports;
       if(Array.isArray(d.students))students=d.students;
-      if(Array.isArray(d.owners))owners=d.owners;
+      if(Array.isArray(d.owners))owners=mergeOwnerProfiles(d.owners);
       if(Array.isArray(d.admins))admins=d.admins;
       if(typeof d.parcelFee==='number')parcelFee=d.parcelFee;
       if(Array.isArray(d.specialServiceWindows))specialServiceWindows=d.specialServiceWindows;
@@ -2209,7 +2218,7 @@ showClosedNote();
     }
     if(role === 'owner'){
       const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(passwordValue) && user.active !== false);
-      if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
+      if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: match.shopId || DEFAULT_SHOP.id, shopName: match.shopName || DEFAULT_SHOP.name };
     }
     if(role === 'admin'){
       const normalized = value.toLowerCase().replace(/\s+/g, '');
@@ -2688,7 +2697,7 @@ showClosedNote();
       }
       if(loginRole === 'owner'){
         const match = owners.find(user => String(user.username || '').trim() === value && String(user.password || '') === String(password) && user.active !== false);
-        if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: DEFAULT_SHOP.id, shopName: DEFAULT_SHOP.name };
+        if(match) return { username: match.username, name: match.name || match.username, role: 'owner', uid: match.username, shopId: match.shopId || DEFAULT_SHOP.id, shopName: match.shopName || DEFAULT_SHOP.name };
       }
       if(loginRole === 'admin'){
         const normalized = value.toLowerCase().replace(/\s+/g, '');
