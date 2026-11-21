@@ -19,7 +19,9 @@
   'use strict';
   var KEY = 'campusbite_mascot_off';
   var MIN_GAP = 45000, MAX_GAP = 90000, FIRST_DELAY = 12000, LOGIN_FIRST_DELAY = 6000, POLL = 1500;
-  var MAX_SESSION = 12, LIVE_GAP = 15000, QUIET_MS = 3000, ACTIVITY_DELAY = 6000;
+  var MAX_SESSION = 12, LIVE_GAP = 20000, QUIET_MS = 3000, ACTIVITY_DELAY = 6000;
+  var READ_BASE = 3800, READ_PER_CHAR = 70, READ_MAX = 14000;   // reading time: base + per character
+  var holding = false, holdTimer = 0;                             // pointer on the mascot = stay until released
   var ADMIN_KEY = 'campusbite_mascot_admin';
 
   /* ---------------- characters ---------------- */
@@ -145,6 +147,11 @@ html.cb-off .cbm{display:none!important}\
         }
       }, { passive: true, capture: true });
     });
+    root.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') holding = true; });
+    root.addEventListener('pointerleave', function () { holding = false; });
+    root.addEventListener('pointerdown', function () {
+      holding = true; clearTimeout(holdTimer); holdTimer = setTimeout(function () { holding = false; }, 5000);
+    });
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) {
         schedule(randomVisits === 0 ? (loggedIn() ? FIRST_DELAY : LOGIN_FIRST_DELAY) : undefined);
@@ -213,7 +220,9 @@ html.cb-off .cbm{display:none!important}\
     var s = document.createElement('small'); s.textContent = c.emoji + ' ' + c.name + (live ? ' • live update' : '');
     bubble.appendChild(s); bubble.appendChild(document.createTextNode(text));
     void bubble.offsetWidth; bubble.classList.add('on');
-    return wait(ms || 2400).then(function () { bubble.classList.remove('on'); });
+    var dur = Math.min(READ_MAX, Math.max(ms || 0, READ_BASE + String(text).length * READ_PER_CHAR));
+    return wait(dur).then(function holdOn() { return holding ? wait(400).then(holdOn) : 0; })
+      .then(function () { bubble.classList.remove('on'); });
   }
   function setAnim(cls) { body.className = 'cbm-body' + (cls ? ' ' + cls : ''); }
   function place(x, y) { root.style.transform = 'translate(' + x + 'px,' + y + 'px)'; }
@@ -243,21 +252,22 @@ html.cb-off .cbm{display:none!important}\
       place(x, H() + 10); setAnim('cbm-sway');
       return move(x, H() - s * 0.75, 600, 'cubic-bezier(.34,1.56,.64,1)')
         .then(function () { return speak(); })
+        .then(function more() { return (showSource === 'live' && queue.length) ? speak().then(more) : 0; })
         .then(function () { return move(x, H() + 10, 450, 'ease-in'); });
     },
     run: function () {
       var s = SZ(), ltr = Math.random() > .5, y = H() - s - rnd(10, 60);
       var x0 = ltr ? -s - 10 : W() + 10, x1 = ltr ? W() + 10 : -s - 10, mid = (W() - s) / 2;
       place(x0, y); setAnim('cbm-bounce'); wrap.style.transform = ltr ? '' : 'scaleX(-1)';
-      return move(mid, y, 1400, 'linear')
-        .then(function () { setAnim('cbm-flip'); wrap.style.transform = ''; return speak(1700); })
-        .then(function () { setAnim('cbm-bounce'); wrap.style.transform = ltr ? '' : 'scaleX(-1)'; return move(x1, y, 1400, 'linear'); });
+      return move(mid, y, 2600, 'linear')
+        .then(function () { setAnim('cbm-flip'); wrap.style.transform = ''; return speak(); })
+        .then(function () { setAnim('cbm-bounce'); wrap.style.transform = ltr ? '' : 'scaleX(-1)'; return move(x1, y, 2600, 'linear'); });
     },
     spin: function () {
       var s = SZ(), x = safeX(), y = rnd(120, Math.max(160, H() - s - 100));
       place(x, y + 40); setAnim('cbm-spin');
       return move(x, y, 500, 'cubic-bezier(.34,1.56,.64,1)')
-        .then(function () { return wait(1000); })
+        .then(function () { return wait(1400); })
         .then(function () { return speak(); })
         .then(function () { return move(x, y - 30, 300).then(function () { return move(x, H() + 20, 500, 'ease-in'); }); });
     }
@@ -331,11 +341,86 @@ html.cb-off .cbm{display:none!important}\
   var base = null, baseAt = 0, wasIn = false;
   function snap() {
     var m = {}, o = {};
-    menuList().forEach(function (x) { m[x.id] = { n: x.name, q: Number(x.qty || 0), p: x.price, a: x.active !== false, e: x.emoji || '🍽️' }; });
-    orderList().forEach(function (x) { if (x && x.token) o[x.token] = x.status || ''; });
-    return { m: m, o: o };
+    var os = {}, tk = {}, r = role();
+    menuList().forEach(function (x) {
+      var own = r === 'owner' ? ownsItem(x) : true;
+      m[x.id] = { n: x.name, q: Number(x.qty || 0), p: x.price, a: x.active !== false, e: x.emoji || '🍽️', sn: x.shopName || 'Main Canteen', own: own };
+    });
+    orderList().forEach(function (x) { if (x && x.token) { o[x.token] = x.status || ''; os[x.token] = x; } });
+    (g('typeof reports!=="undefined"?reports:null') || []).forEach(function (t) { if (t && t.id != null) tk[t.id] = { no: t.no || t.id, sub: t.subject || '', pr: t.priority || '', st: t.status || '' }; });
+    return { m: m, o: o, os: os, tk: tk };
   }
   function push(msg) { if (queue.indexOf(msg) < 0 && queue.length < 3) queue.push(msg); }
+
+  function role() { return g('typeof currentRole!=="undefined"?currentRole:null') || ''; }
+  function lowLevel() { try { return window.CBMaster ? CBMaster.lowStock() : 10; } catch (e) { return 10; } }
+  function ownsItem(x) {
+    try { if (typeof isCurrentOwnersItem === 'function' && isCurrentOwnersItem(x)) return true; } catch (e) {}
+    var u = g('typeof currentUser!=="undefined"?currentUser:null') || {};
+    return !u.shopId && !x.shopId && !x.ownerId;        // simple/local setups with no shop IDs: one shared canteen
+  }
+  function ownsOrder(o) {
+    if (role() !== 'owner') return true;
+    var u = g('typeof currentUser!=="undefined"?currentUser:null') || {};
+    try { if (typeof isCurrentOwnersOrder === 'function') return !!isCurrentOwnersOrder(o); } catch (e) {}
+    return !u.shopId || o.shopId === u.shopId;
+  }
+  /* Shop owner: only THEIR canteen.  Admin: every canteen + tickets + cancellations. */
+  function staffPoll(now) {
+    var admin = role() === 'admin', th = lowLevel(), msgs = [];
+    Object.keys(now.m).forEach(function (id) {
+      var a = now.m[id], b = base.m[id]; if (!b || !a.own) return;
+      var where = admin ? ' (' + a.sn + ')' : '';
+      if (a.q <= 0 && b.q > 0) msgs.push('😱 ' + a.n + ' is SOLD OUT' + where + '!');
+      else if (a.q > 0 && a.q <= th && b.q > th) msgs.push('⚠️ Low stock: only ' + a.q + ' ' + a.n + ' left' + where + '.');
+      else if (a.q > 0 && a.q <= th && a.q < b.q) msgs.push('📉 ' + a.n + ' down to ' + a.q + where + ' — restock soon.');
+      else if (a.q > b.q && b.q <= th) msgs.push('📦 ' + a.n + ' restocked: ' + a.q + where + '.');
+      if (admin && b.a && !a.a) msgs.push('🚫 ' + a.n + ' was switched off' + where + '.');
+    });
+    Object.keys(now.o).forEach(function (t) {
+      var ord = now.os[t]; if (!ord || !ownsOrder(ord)) return;
+      var where = admin && ord.shopName ? ' at ' + ord.shopName : '';
+      if (!(t in base.o)) { if (!admin) msgs.push('🧾 New order ' + t + ' just came in!'); }
+      else if (now.o[t] !== base.o[t]) {
+        var st = now.o[t];
+        if (st === 'Cancelled') msgs.push('❌ Order ' + t + ' was cancelled' + where + '.');
+        else if (st === 'Refunded') msgs.push('💸 Order ' + t + ' was refunded' + where + '.');
+        else if (!admin && st === 'Ready') msgs.push('🔔 Order ' + t + ' marked Ready.');
+      }
+    });
+    if (admin) Object.keys(now.tk).forEach(function (id) {
+      var t = now.tk[id];
+      if (!(id in base.tk)) msgs.push((/high|crit|urgent/i.test(t.pr) ? '🚨 ' : '🎫 ') + 'New ticket ' + t.no + (t.pr ? ' (' + t.pr + ')' : '') + ': ' + t.sub);
+    });
+    msgs.slice(0, 3).forEach(push);
+    if (msgs.length) requestLive();
+  }
+  function staffFact() {
+    var admin = role() === 'admin', th = lowLevel(), facts = [];
+    var items = menuList().filter(function (x) {
+      if (x.active === false) return false;
+      return admin ? true : ownsItem(x);
+    });
+    var low = items.filter(function (x) { return x.qty > 0 && x.qty <= th; }).sort(function (a, b) { return a.qty - b.qty; });
+    var out = items.filter(function (x) { return !(x.qty > 0); });
+    var lab = function (x) { return x.name + ' (' + x.qty + (admin ? ', ' + (x.shopName || 'Main Canteen') : '') + ')'; };
+    if (low.length) facts.push('⚠️ Low stock (' + low.length + '): ' + low.slice(0, 3).map(lab).join(', ') + (low.length > 3 ? ' …' : ''));
+    if (out.length) facts.push('😢 Sold out: ' + out.slice(0, 3).map(function (x) { return x.name + (admin ? ' (' + (x.shopName || 'Main Canteen') + ')' : ''); }).join(', ') + (out.length > 3 ? ' …' : ''));
+    var cooking = orderList().filter(function (x) { return x && /prepar/i.test(x.status || '') && ownsOrder(x); }).length;
+    if (cooking) facts.push('👨‍🍳 ' + cooking + ' order' + (cooking > 1 ? 's' : '') + ' cooking right now.');
+    if (admin) {
+      var open = (g('typeof reports!=="undefined"?reports:null') || []).filter(function (r) { return r && r.status !== 'Closed' && r.status !== 'Resolved'; }).length;
+      if (open) facts.push('🎫 ' + open + ' open ticket' + (open > 1 ? 's' : '') + ' need attention.');
+      try {
+        var c = window.CBMaster && CBMaster.config;
+        if (c && c.ordering.enabled === false) facts.push('⏸️ Ordering is PAUSED for everyone.');
+        var closed = c ? Object.keys(c.closedShops || {}).length : 0;
+        if (closed) facts.push('🏪 ' + closed + ' canteen' + (closed > 1 ? 's are' : ' is') + ' closed by admin.');
+      } catch (e) {}
+    }
+    if (!facts.length) facts.push('✅ All stock levels look healthy.');
+    return facts[Math.floor(Math.random() * facts.length)];
+  }
 
   function poll() {
     adminSetup();
@@ -357,6 +442,7 @@ html.cb-off .cbm{display:none!important}\
     if (!allowed()) return;
     var now = snap();
     if (!base || Date.now() < baseAt) { base = now; return; }
+    if (role() === 'owner' || role() === 'admin') { staffPoll(now); base = now; return; }   // students keep the original live-menu updates below
     var msgs = [], changed = 0, i;
     Object.keys(now.m).forEach(function (id) {
       var a = now.m[id], b = base.m[id];
@@ -387,6 +473,7 @@ html.cb-off .cbm{display:none!important}\
   }
 
   function liveFact() {
+    if (role() === 'owner' || role() === 'admin') return staffFact();
     var m = menuList().filter(function (x) { return x.active !== false; }), o = orderList();
     var cooking = o.filter(function (x) { return x && /prepar/i.test(x.status || ''); }).length;
     var ready = o.filter(function (x) { return x && x.status === 'Ready'; }).length;

@@ -744,7 +744,7 @@ function renderAdmin(){
    const q=x.qty||0, status=q===0?'Out of Stock':q<=10?'Low Stock':'In Stock';
    const cls=q===0?'text-red-600':q<=10?'text-amber-600':'text-emerald-600';
    return `<tr class="admin-menu-row border-b last:border-0">
-     <td class="py-3"><div class="flex items-center gap-2"><span class="text-2xl">${x.emoji}</span><b>${x.name}</b></div></td>
+     <td class="py-3"><div class="flex items-center gap-2"><span class="text-2xl">${x.emoji}</span><div><b>${x.name}</b><p class="text-xs text-slate-500">🏪 ${String(x.shopName||'Main Canteen').replace(/[<>&"']/g,'')}</p></div></div></td>
      <td>${x.cat}</td><td>₹${x.price}</td>
      <td><input data-stock="${x.id}" type="number" min="0" value="${q}" class="w-20 border rounded-lg px-2 py-1"></td>
      <td><span class="stock-state ${cls} font-bold">${status}</span></td>
@@ -845,7 +845,7 @@ function updatePickupUI(){
 }
 function renderCart(){
  const count=cart.reduce((a,b)=>a+b.qty,0), sub=cart.reduce((a,b)=>a+b.price*b.qty,0);
- const fee=getCurrentExtraFee(), total=sub+fee;
+ const fee=getCurrentExtraFee(); const disc=(window.CBMaster&&CBMaster.discountFor)?CBMaster.discountFor(sub):0; const total=Math.max(0,sub+fee-disc);
  const badge=document.getElementById('cartCount');
  if(badge){
    if(badge.textContent!==String(count)){
@@ -863,6 +863,7 @@ function renderCart(){
  if(feeValue) feeValue.textContent='₹'+fee;
  document.getElementById('total').textContent='₹'+total;
  document.getElementById('buttonTotal').textContent='₹'+total;
+ if(window.CBMaster&&CBMaster.renderCouponBox)CBMaster.renderCouponBox(sub,disc);
  updatePickupUI();
 }
 
@@ -2977,6 +2978,8 @@ showClosedNote();
         throw new Error('The canteen is closed right now. Please order during an opening time.');
       }
       if(!cart.length) throw new Error('Your cart is empty.');
+      const masterBlock = window.CBMaster ? CBMaster.guard(cart[0]?.shopId || DEFAULT_SHOP.id) : '';
+      if(masterBlock) throw new Error(masterBlock);
       if(!auth.currentUser || currentRole !== 'student'){
         throw new Error('Please sign in with a student account before placing an order.');
       }
@@ -3002,7 +3005,8 @@ showClosedNote();
       const subtotal = orderItems.reduce((sum, entry) => sum + Number(entry.food.price || 0) * entry.quantity, 0);
       const expressFee = pickupType === 'dine' ? 2 : 0;
       const parcelFeeValue = pickupType === 'parcel' ? Math.max(0, Number(parcelFee) || 0) : 0;
-      const total = subtotal + expressFee + parcelFeeValue;
+      const couponInfo = window.CBMaster ? CBMaster.consume(subtotal) : { discount: 0, code: '' };
+      const total = Math.max(0, subtotal + expressFee + parcelFeeValue - couponInfo.discount);
       const shopName = orderItems[0].food.shopName || DEFAULT_SHOP.name;
       const ownerIds = [...new Set(orderItems.map(entry => entry.food.ownerId).filter(Boolean))];
       if(ownerIds.length > 1) throw new Error('Your cart contains food managed by different shop owners.');
@@ -3037,6 +3041,8 @@ showClosedNote();
         subtotal,
         expressFee,
         parcelFee: parcelFeeValue,
+        discount: couponInfo.discount,
+        couponCode: couponInfo.code,
         total,
         pickupType,
         paymentMethod,
@@ -3060,6 +3066,7 @@ showClosedNote();
         }, { merge: true });
       });
 
+      if(window.CBMaster) CBMaster.afterOrder(couponInfo.code);
       const itemsText = orderDoc.items.map(item => `${item.quantity} × ${item.name}`).join(' + ');
       const localOrder = {
         ...orderDoc,
@@ -3207,6 +3214,7 @@ showClosedNote();
 </script>
 <link rel="stylesheet" href="theme-override.css">
 <script src="animations.js"></script>
+<script src="master-control.js"></script>
 <script src="mascot.js"></script>
 <script src="theme-override.js"></script>
 <script src="role-access.js"></script>
