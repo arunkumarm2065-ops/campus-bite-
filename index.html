@@ -95,6 +95,8 @@
     @keyframes toastOut { to { opacity:0; transform:translateY(6px) scale(.99); } }
     .button-loading::after { content:""; display:inline-block; width:.9rem; height:.9rem; margin-left:.55rem; vertical-align:-.12rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
     .order-spinner { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(255,255,255,.6); border-top-color:#fff; border-radius:999px; animation: spin .75s linear infinite; }
+    #foodImageCropCanvas { display:block; width:100%; aspect-ratio:4/3; touch-action:none; cursor:grab; }
+    #foodImageCropCanvas:active { cursor:grabbing; }
     @media (max-width:639px) {
       #toastRegion { left:.75rem; right:.75rem; top:4.75rem; }
       .app-toast { max-width:100%; }
@@ -619,6 +621,24 @@ header>div>div:last-child{min-width:0}
         <input id="foodTime" class="w-full border rounded-xl px-3 py-2" placeholder="Prep time e.g. 5 min">
         <div class="border rounded-xl p-3"><label class="text-sm font-bold">Food Image</label><input id="foodImage" type="file" accept="image/*" class="w-full mt-2 text-sm"><img id="foodImagePreview" class="hidden mt-3 w-full h-32 object-cover rounded-xl"></div>
         <button id="saveFood" class="w-full py-3 rounded-xl bg-slate-900 text-white font-black">Save Food</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="foodImageCropModal" class="fixed inset-0 z-[90] hidden modal-backdrop grid place-items-center p-4" role="dialog" aria-modal="true" aria-labelledby="foodImageCropTitle">
+    <div class="modal-shell bg-white rounded-3xl max-w-lg w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <div><h3 id="foodImageCropTitle" class="text-lg font-black">Crop food image</h3><p class="text-xs text-slate-500">Drag the image to adjust the crop, or use the slider to zoom.</p></div>
+        <button id="foodImageCropClose" type="button" class="w-9 h-9 rounded-xl bg-slate-100" aria-label="Cancel image crop">×</button>
+      </div>
+      <div class="overflow-hidden rounded-xl bg-slate-900">
+        <canvas id="foodImageCropCanvas" width="900" height="675" aria-label="Drag to position the food image crop"></canvas>
+      </div>
+      <label for="foodImageCropZoom" class="block mt-4 text-sm font-bold">Zoom</label>
+      <input id="foodImageCropZoom" type="range" min="1" max="3" step="0.01" value="1" class="w-full mt-2 accent-orange-500">
+      <div class="flex gap-3 mt-4">
+        <button id="foodImageCropCancel" type="button" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold">Cancel</button>
+        <button id="foodImageCropApply" type="button" class="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black">Use cropped image</button>
       </div>
     </div>
   </div>
@@ -2839,6 +2859,131 @@ showClosedNote();
       btn.textContent = 'Continue as ' + ({ student: 'Student Login', owner: 'Shop Owner Login', admin: 'Admin Login' }[loginRole || 'student']);
     }
   }
+
+  let foodCropImage = null;
+  let foodCropObjectUrl = '';
+  let foodCropZoom = 1;
+  let foodCropX = 0;
+  let foodCropY = 0;
+  let foodCropDrag = null;
+
+  function drawFoodImageCrop(){
+    if(!foodCropImage) return;
+    const canvas = document.getElementById('foodImageCropCanvas');
+    const context = canvas.getContext('2d');
+    if(!context) throw new Error('Image cropping is not supported by this browser.');
+    const width = canvas.width, height = canvas.height;
+    const scale = Math.max(width / foodCropImage.naturalWidth, height / foodCropImage.naturalHeight) * foodCropZoom;
+    const imageWidth = foodCropImage.naturalWidth * scale;
+    const imageHeight = foodCropImage.naturalHeight * scale;
+    foodCropX = Math.min(0, Math.max(width - imageWidth, foodCropX));
+    foodCropY = Math.min(0, Math.max(height - imageHeight, foodCropY));
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(foodCropImage, foodCropX, foodCropY, imageWidth, imageHeight);
+  }
+
+  function closeFoodImageCropper(){
+    document.getElementById('foodImageCropModal').classList.add('hidden');
+    if(foodCropObjectUrl) URL.revokeObjectURL(foodCropObjectUrl);
+    foodCropObjectUrl = '';
+    foodCropImage = null;
+    foodCropDrag = null;
+    document.getElementById('foodImage').value = '';
+  }
+
+  function changeFoodCropZoom(value){
+    if(!foodCropImage) return;
+    const canvas = document.getElementById('foodImageCropCanvas');
+    const centerX = canvas.width / 2, centerY = canvas.height / 2;
+    const previousScale = Math.max(canvas.width / foodCropImage.naturalWidth, canvas.height / foodCropImage.naturalHeight) * foodCropZoom;
+    const sourceCenterX = (centerX - foodCropX) / previousScale;
+    const sourceCenterY = (centerY - foodCropY) / previousScale;
+    foodCropZoom = Number(value);
+    const nextScale = Math.max(canvas.width / foodCropImage.naturalWidth, canvas.height / foodCropImage.naturalHeight) * foodCropZoom;
+    foodCropX = centerX - sourceCenterX * nextScale;
+    foodCropY = centerY - sourceCenterY * nextScale;
+    drawFoodImageCrop();
+  }
+
+  document.getElementById('foodImage').onchange = event => {
+    const file = event.target.files && event.target.files[0];
+    if(!file) return;
+    if(file.type && !file.type.startsWith('image/')){
+      alert('Please choose an image file.');
+      event.target.value = '';
+      return;
+    }
+    if(foodCropObjectUrl) URL.revokeObjectURL(foodCropObjectUrl);
+    foodCropObjectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      foodCropImage = image;
+      foodCropZoom = 1;
+      const canvas = document.getElementById('foodImageCropCanvas');
+      const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight);
+      foodCropX = (canvas.width - image.naturalWidth * scale) / 2;
+      foodCropY = (canvas.height - image.naturalHeight * scale) / 2;
+      document.getElementById('foodImageCropZoom').value = '1';
+      try{
+        drawFoodImageCrop();
+        document.getElementById('foodImageCropModal').classList.remove('hidden');
+      }catch(error){
+        console.error('Could not open food image cropper:', error);
+        alert('This image could not be opened for cropping. Please try another image.');
+        closeFoodImageCropper();
+      }
+    };
+    image.onerror = () => {
+      console.error('Could not load selected food image.');
+      alert('This image could not be opened. Please try another image.');
+      closeFoodImageCropper();
+    };
+    image.src = foodCropObjectUrl;
+  };
+
+  document.getElementById('foodImageCropZoom').oninput = event => changeFoodCropZoom(event.target.value);
+  document.getElementById('foodImageCropCanvas').addEventListener('pointerdown', event => {
+    if(!foodCropImage) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    foodCropDrag = { pointerId:event.pointerId, x:event.clientX, y:event.clientY, cropX:foodCropX, cropY:foodCropY, scaleX:event.currentTarget.width / rect.width, scaleY:event.currentTarget.height / rect.height };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  });
+  document.getElementById('foodImageCropCanvas').addEventListener('pointermove', event => {
+    if(!foodCropDrag || foodCropDrag.pointerId !== event.pointerId) return;
+    foodCropX = foodCropDrag.cropX + (event.clientX - foodCropDrag.x) * foodCropDrag.scaleX;
+    foodCropY = foodCropDrag.cropY + (event.clientY - foodCropDrag.y) * foodCropDrag.scaleY;
+    drawFoodImageCrop();
+  });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(type => {
+    document.getElementById('foodImageCropCanvas').addEventListener(type, () => { foodCropDrag = null; });
+  });
+  document.getElementById('foodImageCropClose').onclick = closeFoodImageCropper;
+  document.getElementById('foodImageCropCancel').onclick = closeFoodImageCropper;
+  document.getElementById('foodImageCropApply').onclick = () => {
+    if(!foodCropImage) return;
+    try{
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = 800;
+      cropCanvas.height = 600;
+      const context = cropCanvas.getContext('2d');
+      if(!context) throw new Error('Image cropping is not supported by this browser.');
+      const preview = document.getElementById('foodImageCropCanvas');
+      const scale = Math.max(preview.width / foodCropImage.naturalWidth, preview.height / foodCropImage.naturalHeight) * foodCropZoom;
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+      context.drawImage(foodCropImage, -foodCropX / scale, -foodCropY / scale, preview.width / scale, preview.height / scale, 0, 0, cropCanvas.width, cropCanvas.height);
+      selectedFoodImage = cropCanvas.toDataURL('image/jpeg', 0.9);
+      const imagePreview = document.getElementById('foodImagePreview');
+      imagePreview.src = selectedFoodImage;
+      imagePreview.classList.remove('hidden');
+      closeFoodImageCropper();
+    }catch(error){
+      console.error('Could not crop selected food image:', error);
+      alert('The image could not be cropped. Please try a different image.');
+    }
+  };
 
   async function saveFoodItem(){
     if((currentRole !== 'owner' && currentRole !== 'admin') || (!auth.currentUser && currentRole !== 'admin')){
