@@ -112,7 +112,10 @@ service cloud.firestore {
         signedIn() &&
         request.auth.uid == userId &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['name', 'username', 'email', 'shopName', 'shopId', 'className', 'updatedAt']) &&
+          .hasOnly(['name', 'username', 'email', 'shopName', 'shopId', 'className', 'phone', 'avatar', 'updatedAt']) &&
+        request.resource.data.get('phone', '').size() <= 20 &&
+        request.resource.data.get('avatar', '').size() <= 8 &&
+        request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40 &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.active == resource.data.active &&
         (resource.data.role != 'owner' || request.resource.data.shopId == resource.data.shopId)
