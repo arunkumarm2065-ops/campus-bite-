@@ -58,6 +58,26 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+
+    // ---- Milestone rewards (admin controls them; claims are written only by the claimReward Cloud Function) ----
+    match /rewardMilestones/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /rewardClaims/{id} {
+      allow read: if signedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // ---- Monthly sales report e-mail (settings by admin; logs written only by Cloud Functions) ----
+    match /reportSettings/{shopId} {
+      allow read, write: if isAdmin();
+    }
+    match /reportLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isAdmin();

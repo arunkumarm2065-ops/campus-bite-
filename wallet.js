@@ -55,7 +55,9 @@
     topup:        { label: 'Top-up',      icon: '➕', cls: 'bg-emerald-50 text-emerald-700', sign: 1 },
     admin_credit: { label: 'Added by admin', icon: '🛡️', cls: 'bg-emerald-50 text-emerald-700', sign: 1 },
     refund:       { label: 'Refund',      icon: '↩️', cls: 'bg-sky-50 text-sky-700', sign: 1 },
-    payment:      { label: 'Payment',     icon: '🍽️', cls: 'bg-orange-50 text-orange-700', sign: -1 }
+    payment:      { label: 'Payment',     icon: '🍽️', cls: 'bg-orange-50 text-orange-700', sign: -1 },
+    reward:       { label: 'Reward bonus', icon: '🏆', cls: 'bg-amber-50 text-amber-700', sign: 1 },
+    reversal:     { label: 'Reversed by admin', icon: '⤺', cls: 'bg-red-50 text-red-700', sign: -1 }
   };
 
   /* ---------- state ---------- */
@@ -140,6 +142,32 @@
     amount = Math.floor(Number(amount));
     if (!(amount >= 1) || amount > 5000) return Promise.reject(new Error('Enter an amount between ₹1 and ₹5000.'));
     return writeCredit(studentUid, studentName, amount, 'admin_credit', 'Added by ' + myName());
+  }
+
+  /* ADMIN ONLY: take back money that was added to a wallet (a top-up or an admin credit).
+     The ledger line has a fixed id (rev_<originalId>) so the same top-up can never be reversed twice.
+     A student can never create this ledger type (see firestore.rules). */
+  function reverseCredit(txn) {
+    var d = db(), u = me();
+    if (role() !== 'admin' || !d || !u) return Promise.reject(new Error('Only the admin can reverse added money.'));
+    if (!txn || !txn.id || (txn.type !== 'topup' && txn.type !== 'admin_credit')) return Promise.reject(new Error('Only added money can be reversed.'));
+    var amount = r2(txn.amount);
+    var wref = d.collection('wallets').doc(txn.studentId), rref = d.collection('walletTxns').doc('rev_' + txn.id);
+    return d.runTransaction(function (tx) {
+      return Promise.all([tx.get(wref), tx.get(rref)]).then(function (snaps) {
+        if (snaps[1].exists) throw new Error('This top-up was already reversed.');
+        var bal = snaps[0].exists ? Number(snaps[0].data().balance || 0) : 0;
+        if (bal + 0.001 < amount) throw new Error('The student has already spent part of this money (balance ' + rs(bal) + ', top-up ' + rs(amount) + '). It cannot be reversed in full.');
+        var nb = r2(bal - amount), stamp = firebase.firestore.FieldValue.serverTimestamp();
+        tx.set(wref, { balance: nb, studentId: txn.studentId, studentName: txn.studentName || 'Student', updatedAt: stamp }, { merge: true });
+        tx.set(rref, {
+          studentId: txn.studentId, studentName: txn.studentName || 'Student', type: 'reversal', amount: amount, balanceAfter: nb,
+          reversesTxnId: txn.id, orderId: '', token: '', note: 'Reversed ' + (TYPE[txn.type] ? TYPE[txn.type].label : 'top-up') + ' of ' + rs(amount) + ' (by ' + myName() + ')',
+          createdAt: stamp, createdBy: u.uid, createdByRole: 'admin', createdByName: myName()
+        });
+        return nb;
+      });
+    });
   }
 
   /* Refund an order's money back to the student's wallet (admin only). Safe to call twice. */
@@ -306,8 +334,8 @@
       + '<h4 class="font-black mb-2">Student wallets</h4><div id="cbwWallets" class="space-y-2 mb-6"></div>'
       + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3"><h4 class="font-black">Transaction ledger</h4>'
       + '<div class="flex gap-2"><input id="cbwSearch" type="search" placeholder="Search student, order # or note…" class="border rounded-xl px-3 py-2 text-sm w-full sm:w-64">'
-      + '<select id="cbwType" class="border rounded-xl px-3 py-2 text-sm font-bold" aria-label="Filter by type"><option value="all">All</option><option value="payment">Payments</option><option value="topup">Top-ups</option><option value="admin_credit">Admin credits</option><option value="refund">Refunds</option></select></div></div>'
-      + '<div class="overflow-x-auto"><table class="w-full text-sm min-w-[760px]"><thead><tr class="border-b text-left text-slate-500"><th class="py-3">Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Balance after</th><th>Order</th><th>Note</th></tr></thead><tbody id="cbwLedger"></tbody></table></div>'
+      + '<select id="cbwType" class="border rounded-xl px-3 py-2 text-sm font-bold" aria-label="Filter by type"><option value="all">All</option><option value="payment">Payments</option><option value="topup">Top-ups</option><option value="admin_credit">Admin credits</option><option value="refund">Refunds</option><option value="reward">Rewards</option><option value="reversal">Reversals</option></select></div></div>'
+      + '<div class="overflow-x-auto"><table class="w-full text-sm min-w-[760px]"><thead><tr class="border-b text-left text-slate-500"><th class="py-3">Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Balance after</th><th>Order</th><th>Note</th><th></th></tr></thead><tbody id="cbwLedger"></tbody></table></div>'
       + '<p id="cbwEmpty" class="hidden text-center text-slate-400 py-6">No wallet transactions match.</p>'
       + '</div>';
     histSec.parentNode.insertBefore(s, histSec);
@@ -324,6 +352,8 @@
       if (c) return creditClick(c);
       var r = e.target.closest && e.target.closest('[data-refund]');
       if (r) return refundClick(r);
+      var v = e.target.closest && e.target.closest('[data-reverse]');
+      if (v) return reverseClick(v);
     });
 
     // any other admin tab hides this one
@@ -352,7 +382,15 @@
     var uid = btn.getAttribute('data-credit'), name = btn.getAttribute('data-name');
     var inp = document.querySelector('[data-amt="' + uid + '"]'), amt = inp ? inp.value : '';
     btn.disabled = true;
-    adminCredit(uid, name, amt).then(function (nb) { toast('Added to ' + name + "'s wallet. New balance " + rs(nb)); if (inp) inp.value = ''; })
+    adminCredit(uid, name, amt).then(function (nb) { if (inp) inp.value = ''; toast('Added to ' + name + "'s wallet. New balance " + rs(nb)); })
+      .catch(function (e) { alert(errText(e)); }).then(function () { btn.disabled = false; });
+  }
+  function reverseClick(btn) {
+    var id = btn.getAttribute('data-reverse');
+    var t = S.allTxns.filter(function (x) { return x.id === id; })[0]; if (!t) return;
+    if (!confirm('Take back ' + rs(t.amount) + ' that was added to ' + (t.studentName || 'this student') + "'s wallet?\nThe money is removed from their balance and a reversal line is added to the ledger.")) return;
+    btn.disabled = true;
+    reverseCredit(t).then(function (nb) { toast('Reversed ' + rs(t.amount) + '. New balance ' + rs(nb)); })
       .catch(function (e) { alert(errText(e)); }).then(function () { btn.disabled = false; });
   }
   function refundClick(btn) {
@@ -381,6 +419,25 @@
     return S.cancelled.filter(function (o) { return String(o.paymentMethod || '') === 'Campus Wallet' && !o.walletRefunded && Number(o.total) > 0 && o.studentId; });
   }
 
+  /* Repaint the student list ONLY when something really changed, and keep whatever the admin
+     has typed (and the cursor) when it does. Before this, the list was rebuilt on every Firestore
+     snapshot and every 3 seconds, which erased the amount box while typing. */
+  var lastWalletsHtml = '';
+  function paintWallets(html) {
+    var box = $('cbwWallets'); if (!box || html === lastWalletsHtml) return;
+    var typed = {}, focusUid = null, selStart = null, selEnd = null, active = document.activeElement;
+    box.querySelectorAll('[data-amt]').forEach(function (i) {
+      if (i.value !== '') typed[i.getAttribute('data-amt')] = i.value;
+      if (i === active) { focusUid = i.getAttribute('data-amt'); try { selStart = i.selectionStart; selEnd = i.selectionEnd; } catch (e) {} }
+    });
+    box.innerHTML = html; lastWalletsHtml = html;
+    box.querySelectorAll('[data-amt]').forEach(function (i) {
+      var id = i.getAttribute('data-amt');
+      if (typed[id] != null) i.value = typed[id];
+      if (id === focusUid) { i.focus(); try { if (selStart != null) i.setSelectionRange(selStart, selEnd); } catch (e) {} }
+    });
+  }
+
   function renderAdmin() {
     var s = $(SEC); if (!s || s.classList.contains('hidden') || role() !== 'admin') return;
     var held = S.wallets.reduce(function (a, w) { return a + Number(w.balance || 0); }, 0);
@@ -389,6 +446,7 @@
       if (!isToday(t.createdAt)) return;
       if (t.type === 'payment') spentToday += Number(t.amount || 0);
       else if (t.type === 'topup' || t.type === 'admin_credit') addedToday += Number(t.amount || 0);
+      else if (t.type === 'reversal') addedToday -= Number(t.amount || 0);
     });
     var card = function (label, val, cls) { return '<div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">' + label + '</p><b class="text-2xl ' + (cls || '') + '">' + val + '</b></div>'; };
     $('cbwStats').innerHTML = card('Money held in wallets', rs(held)) + card('Wallets', S.wallets.length) + card('Spent today', rs(spentToday), 'text-orange-600') + card('Added today', rs(addedToday), 'text-emerald-600');
@@ -403,11 +461,12 @@
       : '';
 
     var list = studentList();
-    $('cbwWallets').innerHTML = list.length ? list.map(function (st) {
+    var html = list.length ? list.map(function (st) {
       return '<div class="flex flex-wrap items-center justify-between gap-3 border rounded-xl p-3"><div><b>' + esc(st.name) + '</b><p class="text-xs text-slate-500">Balance <b class="text-slate-900">' + rs(st.balance) + '</b></p></div>'
         + '<div class="flex items-center gap-2"><input data-amt="' + esc(st.uid) + '" type="number" min="1" max="5000" step="1" inputmode="numeric" placeholder="₹" aria-label="Amount to add for ' + esc(st.name) + '" class="w-24 border rounded-lg px-2 py-1.5 text-sm">'
         + '<button type="button" data-credit="' + esc(st.uid) + '" data-name="' + esc(st.name) + '" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 font-bold text-sm">+ Add money</button></div></div>';
     }).join('') : '<p class="text-sm text-slate-400">No student wallets yet. They appear as soon as a student adds money, or after you create student accounts.</p>';
+    paintWallets(html);
     renderLedger();
   }
 
@@ -418,6 +477,8 @@
       if (ty !== 'all' && t.type !== ty) return false;
       return !q || (String(t.studentName || '') + ' ' + String(t.token || '') + ' ' + String(t.note || '')).toLowerCase().indexOf(q) >= 0;
     });
+    var reversed = {};
+    S.allTxns.forEach(function (t) { if (t.type === 'reversal' && t.reversesTxnId) reversed[t.reversesTxnId] = true; });
     $('cbwEmpty').classList.toggle('hidden', rows.length > 0);
     body.innerHTML = rows.map(function (t) {
       var T = TYPE[t.type] || { label: t.type, icon: '•', cls: 'bg-slate-100 text-slate-600', sign: 1 }, plus = T.sign > 0;
@@ -427,7 +488,8 @@
         + '<td class="font-black ' + (plus ? 'text-emerald-600' : 'text-red-600') + '">' + (plus ? '+' : '−') + rs(t.amount) + '</td>'
         + '<td>' + rs(t.balanceAfter) + '</td>'
         + '<td>' + (t.token ? '<button type="button" data-order="' + esc(t.token) + '" class="font-black text-orange-600 underline decoration-dotted">' + esc(t.token) + '</button>' : '<span class="text-slate-300">—</span>') + '</td>'
-        + '<td class="text-xs text-slate-500">' + esc(t.note || '') + '</td></tr>';
+        + '<td class="text-xs text-slate-500">' + esc(t.note || '') + '</td>'
+        + '<td>' + ((t.type === 'topup' || t.type === 'admin_credit') && !reversed[t.id] ? '<button type="button" data-reverse="' + esc(t.id) + '" class="px-2 py-1 rounded-lg bg-red-50 text-red-600 font-bold text-xs whitespace-nowrap">Reverse</button>' : (reversed[t.id] ? '<span class="text-xs text-slate-400">Reversed</span>' : '')) + '</td></tr>';
     }).join('');
   }
 
@@ -455,7 +517,7 @@
       var el = $(id); if (el && window.MutationObserver) new MutationObserver(function () { setTimeout(sync, 50); }).observe(el, { attributes: true, attributeFilter: ['class'] });
     });
     if (window.firebase && firebase.apps && firebase.apps.length) firebase.auth().onAuthStateChanged(function () { setTimeout(sync, 200); });
-    setInterval(sync, 3000);      // cheap safety net (e.g. role changes without a class change)
+    setInterval(sync, 3000);      // cheap safety net; renderAdmin() now skips unchanged content
     sync();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();
@@ -465,6 +527,7 @@
     get loaded() { return S.loaded; },
     open: openModal,
     refresh: refreshAll,
-    allowTopUp: ALLOW_STUDENT_TOPUP
+    allowTopUp: ALLOW_STUDENT_TOPUP,
+    reverseCredit: reverseCredit
   };
 })();
