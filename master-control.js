@@ -235,10 +235,10 @@
   function refreshCart() { try { if (typeof renderCart === 'function') renderCart(); } catch (e) { console.error(e); } }
 
   /* ---------------- announcement banner + global switches ---------------- */
-  var BANNER_CSS = '#cbAnnounce{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:0 0 0 12px;height:40px;font-weight:800;font-size:14px;border-bottom:1px solid rgba(0,0,0,.06)}'
+  var BANNER_CSS = '#cbAnnounce{position:relative;overflow:hidden;display:flex;flex-wrap:nowrap;box-sizing:border-box;align-items:center;gap:10px;padding:0 0 0 12px;height:40px;font-weight:800;font-size:14px;border-bottom:1px solid rgba(0,0,0,.06)}'
     + '#cbAnnounce .cba-tag{flex:0 0 auto;position:relative;z-index:2;padding:3px 10px;border-radius:9999px;background:currentColor;font-size:11px;letter-spacing:.06em;text-transform:uppercase}'
     + '#cbAnnounce .cba-tag span{color:#fff;mix-blend-mode:normal}'
-    + '#cbAnnounce .cba-view{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}'
+    + '#cbAnnounce .cba-view{flex:1 1 0;min-width:0;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}'
     + '#cbAnnounce .cba-track{display:inline-flex;white-space:nowrap;will-change:transform;animation:cbaScroll var(--cba-dur,24s) linear infinite}'
     + '#cbAnnounce:hover .cba-track,#cbAnnounce:active .cba-track,#cbAnnounce:focus-within .cba-track{animation-play-state:paused}'
     + '#cbAnnounce .cba-item{padding-right:72px}'
