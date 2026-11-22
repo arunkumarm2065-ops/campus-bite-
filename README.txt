@@ -40,8 +40,9 @@ Admin
 - Order History: click the order # to see the customer name, ID and full order details.
 - The existing Refund button also returns wallet money to the student's wallet.
 Announcement
-- Admin > Master Control > Announcement banner: type a message, Save. It scrolls across the top for everyone
-  (hover/touch pauses it) and a mascot reads it aloud once per browser session (again if the text changes).
+- Admin > Master Control > Announcement banner: set separate messages for students, owners, and admins, then Save.
+  Each role sees its own message across the sticky header (hover/touch pauses it); a mascot reads that message
+  aloud once per browser session (again if the text changes).
 
 DEMO TOP-UP: there is no payment gateway, so students can add money to their own wallet for testing
 (max Rs 2000 per top-up, Rs 5000 balance). For real use set ALLOW_STUDENT_TOPUP = false in wallet.js AND

@@ -26,7 +26,7 @@
     couponsEnabled: true,
     coupons: [],
     closedShops: {},
-    announcement: { enabled: false, text: '', level: 'info', style: 'both' },
+    announcement: { enabled: false, text: '', messages: { student: '', owner: '', admin: '' }, level: 'info', style: 'both' },
     lowStock: 10,
     animations: true
   };
@@ -62,7 +62,24 @@
     if (typeof remote.couponsEnabled === 'boolean') c.couponsEnabled = remote.couponsEnabled;
     if (Array.isArray(remote.coupons)) c.coupons = remote.coupons;
     if (remote.closedShops && typeof remote.closedShops === 'object') c.closedShops = remote.closedShops;
-    if (remote.announcement) c.announcement = { enabled: !!remote.announcement.enabled, text: String(remote.announcement.text || ''), level: remote.announcement.level || 'info', style: ['both', 'train', 'plane', 'text'].indexOf(remote.announcement.style) >= 0 ? remote.announcement.style : 'both' };
+    if (remote.announcement) {
+      var sourceAnn = remote.announcement, sourceMessages = sourceAnn.messages;
+      var oldText = String(sourceAnn.text || '');
+      var messages = sourceMessages && typeof sourceMessages === 'object'
+        ? {
+          student: typeof sourceMessages.student === 'string' ? sourceMessages.student : oldText,
+          owner: typeof sourceMessages.owner === 'string' ? sourceMessages.owner : oldText,
+          admin: typeof sourceMessages.admin === 'string' ? sourceMessages.admin : oldText
+        }
+        : { student: oldText, owner: oldText, admin: oldText };
+      c.announcement = {
+        enabled: !!sourceAnn.enabled,
+        text: messages.student,
+        messages: messages,
+        level: sourceAnn.level || 'info',
+        style: ['both', 'train', 'plane', 'text'].indexOf(sourceAnn.style) >= 0 ? sourceAnn.style : 'both'
+      };
+    }
     if (Number(remote.lowStock) > 0) c.lowStock = Number(remote.lowStock);
     if (typeof remote.animations === 'boolean') c.animations = remote.animations;
     cfg = c;
@@ -274,8 +291,11 @@
   function banner() {
     var el = $('cbAnnounce');
     var paused = cfg.ordering && cfg.ordering.enabled === false;
-    var a = cfg.announcement || {};
-    var show = paused || (a.enabled && a.text);
+    var a = cfg.announcement || {}, userRole = role();
+    var roleMessages = a.messages || {};
+    var announcementText = typeof roleMessages[userRole] === 'string' ? roleMessages[userRole] : (userRole === 'student' ? a.text : '');
+    var showAnn = !!(a.enabled && announcementText);
+    var show = paused || showAnn;
     if (!show) { if (el) el.remove(); return; }
     if (!$('cbAnnounceCss')) { var st = document.createElement('style'); st.id = 'cbAnnounceCss'; st.textContent = BANNER_CSS; document.head.appendChild(st); }
     var h = document.querySelector('header'); if (!h) return;
@@ -285,7 +305,7 @@
     if (el.parentElement !== h) h.appendChild(el);
     var lvl = paused ? 'bad' : a.level;
     var colors = { info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'], bad: ['#fef2f2', '#b91c1c'] }[lvl] || ['#eff6ff', '#1d4ed8'];
-    var msg = paused ? '⏸️ ' + (cfg.ordering.message || 'Ordering is paused by the admin.') : '📢 ' + a.text;
+    var msg = paused ? '⏸️ ' + (cfg.ordering.message || 'Ordering is paused by the admin.') : '📢 ' + announcementText;
     var style = (a.style === 'train' || a.style === 'plane' || a.style === 'text') ? a.style : 'both';
     var sig = lvl + '|' + style + '|' + msg;
     if (el.getAttribute('data-sig') !== sig) {           // only rebuild when something changed, so the scroll never restarts
@@ -300,7 +320,7 @@
       track.style.setProperty('--cba-dur', Math.max(12, Math.round((half + (el.clientWidth || 360)) / 55)) + 's');
       el.setAttribute('aria-label', msg);
     }
-    if (!paused) tellMascot(a.text);
+    if (!paused && showAnn) tellMascot(announcementText);
   }
   /* Ask the mascot to read the announcement once per browser session (re-reads only when the text changes). */
   function tellMascot(text) {
@@ -386,10 +406,13 @@
     }).join('');
     var canteens = card('🏪 Canteens', 'Close a canteen to stop new orders from it (existing orders continue).', shopRows || '<p class="text-sm text-slate-500">No canteens yet.</p>');
 
-    var a = cfg.announcement;
-    var ann = card('📢 Announcement banner', 'Shown at the top for every user.',
+    var a = cfg.announcement, annMessages = a.messages || {};
+    var ann = card('📢 Announcement banner', 'Set a separate message for students, owners, and admins.',
       row('Show banner', '', sw('announce', !!a.enabled, 'Show banner'))
-      + '<div class="grid gap-2 mt-3"><input id="cbmAnnText" value="' + esc(a.text) + '" maxlength="140" placeholder="e.g. Canteen closes early today at 4 PM" class="w-full border rounded-xl px-3 py-2 text-sm">'
+      + '<div class="grid gap-2 mt-3">'
+      + '<label class="block text-xs font-bold text-slate-500">Students<input id="cbmAnnStudent" value="' + esc(typeof annMessages.student === 'string' ? annMessages.student : a.text) + '" maxlength="140" placeholder="Message shown to students" class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"></label>'
+      + '<label class="block text-xs font-bold text-slate-500">Owners<input id="cbmAnnOwner" value="' + esc(annMessages.owner || '') + '" maxlength="140" placeholder="Message shown to owners" class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"></label>'
+      + '<label class="block text-xs font-bold text-slate-500">Admins<input id="cbmAnnAdmin" value="' + esc(annMessages.admin || '') + '" maxlength="140" placeholder="Message shown to admins" class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"></label>'
       + '<div class="flex flex-wrap gap-2"><select id="cbmAnnStyle" aria-label="Banner style" class="border rounded-xl px-3 py-2 text-sm"><option value="both"' + ((a.style || 'both') === 'both' ? ' selected' : '') + '>🚂✈️ Train &amp; Airplane</option><option value="train"' + (a.style === 'train' ? ' selected' : '') + '>🚂 Train</option><option value="plane"' + (a.style === 'plane' ? ' selected' : '') + '>✈️ Airplane</option><option value="text"' + (a.style === 'text' ? ' selected' : '') + '>Plain text</option></select><select id="cbmAnnLevel" class="border rounded-xl px-3 py-2 text-sm"><option value="info"' + (a.level === 'info' ? ' selected' : '') + '>ℹ️ Info</option><option value="warn"' + (a.level === 'warn' ? ' selected' : '') + '>⚠️ Warning</option><option value="bad"' + (a.level === 'bad' ? ' selected' : '') + '>🚨 Urgent</option></select>'
       + '<button type="button" data-act="saveAnn" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-black text-sm">Save banner</button></div></div>');
 
@@ -412,7 +435,7 @@
     var coupons = card('🎟️ Coupons', 'Create discount codes students can apply in their cart.', form + '<div class="space-y-2 mt-4">' + (cRows || '<p class="text-sm text-slate-500">No coupons yet. Create one above.</p>') + '</div>');
 
     // keep typed text when re-rendering
-    var keep = {}; ['cpCode', 'cpType', 'cpValue', 'cpMin', 'cpMax', 'cpShop', 'cpExp', 'cpLimit', 'cbmAnnText', 'cbmAnnLevel', 'cbmPauseMsg'].forEach(function (id) { var e = $(id); if (e) keep[id] = e.value; });
+    var keep = {}; ['cpCode', 'cpType', 'cpValue', 'cpMin', 'cpMax', 'cpShop', 'cpExp', 'cpLimit', 'cbmAnnStudent', 'cbmAnnOwner', 'cbmAnnAdmin', 'cbmAnnLevel', 'cbmPauseMsg'].forEach(function (id) { var e = $(id); if (e) keep[id] = e.value; });
     host.innerHTML = '<div class="grid lg:grid-cols-2 gap-4">' + controls + canteens + '</div><div class="grid lg:grid-cols-2 gap-4 mt-4">' + coupons + ann + '</div>';
     Object.keys(keep).forEach(function (id) { var e = $(id); if (e) e.value = keep[id]; });
   }
@@ -433,7 +456,19 @@
     var a = e.target.closest ? e.target.closest('[data-act]') : null; if (!a) return;
     var act = a.getAttribute('data-act');
     if (act === 'delCoupon') { var i = +a.getAttribute('data-i'); var cc = cfg.coupons[i]; if (cc && confirm('Delete coupon ' + cc.code + '?')) { cfg.coupons.splice(i, 1); persist('coupon deleted'); } }
-    if (act === 'saveAnn') { cfg.announcement.text = $('cbmAnnText').value.trim().slice(0, 140); cfg.announcement.level = $('cbmAnnLevel').value; cfg.announcement.style = $('cbmAnnStyle') ? $('cbmAnnStyle').value : 'both'; if (cfg.announcement.text) cfg.announcement.enabled = true; persist('banner updated'); }
+    if (act === 'saveAnn') {
+      var messages = {
+        student: $('cbmAnnStudent').value.trim().slice(0, 140),
+        owner: $('cbmAnnOwner').value.trim().slice(0, 140),
+        admin: $('cbmAnnAdmin').value.trim().slice(0, 140)
+      };
+      cfg.announcement.messages = messages;
+      cfg.announcement.text = messages.student;
+      cfg.announcement.level = $('cbmAnnLevel').value;
+      cfg.announcement.style = $('cbmAnnStyle') ? $('cbmAnnStyle').value : 'both';
+      cfg.announcement.enabled = Object.keys(messages).some(function (r) { return !!messages[r]; });
+      persist('banner updated');
+    }
     if (act === 'addCoupon') addCoupon();
   }
   function addCoupon() {
