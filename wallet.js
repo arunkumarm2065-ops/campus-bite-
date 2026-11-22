@@ -415,6 +415,13 @@
     return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
   }
 
+  function setHtmlIfChanged(id, html) {
+    var el = $(id);
+    if (!el || el.__cbWalletHtml === html) return;
+    el.innerHTML = html;
+    el.__cbWalletHtml = html;
+  }
+
   function pendingRefunds() {
     return S.cancelled.filter(function (o) { return String(o.paymentMethod || '') === 'Campus Wallet' && !o.walletRefunded && Number(o.total) > 0 && o.studentId; });
   }
@@ -449,16 +456,16 @@
       else if (t.type === 'reversal') addedToday -= Number(t.amount || 0);
     });
     var card = function (label, val, cls) { return '<div class="dashboard-stat-card bg-white rounded-2xl border p-4"><p class="text-xs text-slate-500">' + label + '</p><b class="text-2xl ' + (cls || '') + '">' + val + '</b></div>'; };
-    $('cbwStats').innerHTML = card('Money held in wallets', rs(held)) + card('Wallets', S.wallets.length) + card('Spent today', rs(spentToday), 'text-orange-600') + card('Added today', rs(addedToday), 'text-emerald-600');
+    setHtmlIfChanged('cbwStats', card('Money held in wallets', rs(held)) + card('Wallets', S.wallets.length) + card('Spent today', rs(spentToday), 'text-orange-600') + card('Added today', rs(addedToday), 'text-emerald-600'));
 
     var pr = pendingRefunds();
-    $('cbwRefunds').innerHTML = pr.length
+    setHtmlIfChanged('cbwRefunds', pr.length
       ? '<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-5"><h4 class="font-black text-amber-800 mb-2">Refunds due (' + pr.length + ')</h4><p class="text-xs text-amber-700 mb-3">These wallet orders were cancelled but the money has not been returned yet.</p><div class="space-y-2">'
         + pr.map(function (o) {
           return '<div class="flex items-center justify-between gap-3 bg-white rounded-xl border p-3"><div class="min-w-0"><b>' + esc(o.token || '') + '</b> • ' + esc(o.studentName || 'Student') + '<p class="text-xs text-slate-500">' + rs(o.total) + (o.cancelReason ? ' • ' + esc(o.cancelReason) : '') + '</p></div>'
             + '<button type="button" data-refund="' + esc(o.id) + '" class="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm whitespace-nowrap">Refund to wallet</button></div>';
         }).join('') + '</div></div>'
-      : '';
+      : '');
 
     var list = studentList();
     var html = list.length ? list.map(function (st) {
@@ -480,7 +487,7 @@
     var reversed = {};
     S.allTxns.forEach(function (t) { if (t.type === 'reversal' && t.reversesTxnId) reversed[t.reversesTxnId] = true; });
     $('cbwEmpty').classList.toggle('hidden', rows.length > 0);
-    body.innerHTML = rows.map(function (t) {
+    setHtmlIfChanged('cbwLedger', rows.map(function (t) {
       var T = TYPE[t.type] || { label: t.type, icon: '•', cls: 'bg-slate-100 text-slate-600', sign: 1 }, plus = T.sign > 0;
       return '<tr class="history-row border-b last:border-0"><td class="py-3 text-xs text-slate-500 whitespace-nowrap">' + esc(when(t.createdAt)) + '</td>'
         + '<td class="font-bold">' + esc(t.studentName || 'Student') + '</td>'
@@ -490,7 +497,7 @@
         + '<td>' + (t.token ? '<button type="button" data-order="' + esc(t.token) + '" class="font-black text-orange-600 underline decoration-dotted">' + esc(t.token) + '</button>' : '<span class="text-slate-300">—</span>') + '</td>'
         + '<td class="text-xs text-slate-500">' + esc(t.note || '') + '</td>'
         + '<td>' + ((t.type === 'topup' || t.type === 'admin_credit') && !reversed[t.id] ? '<button type="button" data-reverse="' + esc(t.id) + '" class="px-2 py-1 rounded-lg bg-red-50 text-red-600 font-bold text-xs whitespace-nowrap">Reverse</button>' : (reversed[t.id] ? '<span class="text-xs text-slate-400">Reversed</span>' : '')) + '</td></tr>';
-    }).join('');
+    }).join(''));
   }
 
   /* ======================================================================
@@ -517,7 +524,6 @@
       var el = $(id); if (el && window.MutationObserver) new MutationObserver(function () { setTimeout(sync, 50); }).observe(el, { attributes: true, attributeFilter: ['class'] });
     });
     if (window.firebase && firebase.apps && firebase.apps.length) firebase.auth().onAuthStateChanged(function () { setTimeout(sync, 200); });
-    setInterval(sync, 3000);      // cheap safety net; renderAdmin() now skips unchanged content
     sync();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();

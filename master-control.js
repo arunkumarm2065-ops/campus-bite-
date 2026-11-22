@@ -26,7 +26,7 @@
     couponsEnabled: true,
     coupons: [],
     closedShops: {},
-    announcement: { enabled: false, text: '', level: 'info' },
+    announcement: { enabled: false, text: '', level: 'info', style: 'both' },
     lowStock: 10,
     animations: true
   };
@@ -62,7 +62,7 @@
     if (typeof remote.couponsEnabled === 'boolean') c.couponsEnabled = remote.couponsEnabled;
     if (Array.isArray(remote.coupons)) c.coupons = remote.coupons;
     if (remote.closedShops && typeof remote.closedShops === 'object') c.closedShops = remote.closedShops;
-    if (remote.announcement) c.announcement = { enabled: !!remote.announcement.enabled, text: String(remote.announcement.text || ''), level: remote.announcement.level || 'info' };
+    if (remote.announcement) c.announcement = { enabled: !!remote.announcement.enabled, text: String(remote.announcement.text || ''), level: remote.announcement.level || 'info', style: ['both', 'train', 'plane', 'text'].indexOf(remote.announcement.style) >= 0 ? remote.announcement.style : 'both' };
     if (Number(remote.lowStock) > 0) c.lowStock = Number(remote.lowStock);
     if (typeof remote.animations === 'boolean') c.animations = remote.animations;
     cfg = c;
@@ -225,9 +225,52 @@
     + '#cbAnnounce .cba-track{display:inline-flex;white-space:nowrap;will-change:transform;animation:cbaScroll var(--cba-dur,24s) linear infinite}'
     + '#cbAnnounce:hover .cba-track,#cbAnnounce:active .cba-track,#cbAnnounce:focus-within .cba-track{animation-play-state:paused}'
     + '#cbAnnounce .cba-item{padding-right:72px}'
+    + '#cbAnnounce .cba-item.cba-veh{display:inline-flex;align-items:center;padding-right:130px}'
+    + '#cbAnnounce .cba-train,#cbAnnounce .cba-plane{display:inline-block;flex:0 0 auto;overflow:visible}'
+    + '#cbAnnounce .cba-train{height:30px;width:60px}'
+    + '#cbAnnounce .cba-plane{height:26px;width:48px;animation:cbaBob 2.2s ease-in-out infinite}'
+    + '#cbAnnounce .cba-smoke{animation:cbaSmoke 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}'
+    + '#cbAnnounce .cba-smoke2{animation-delay:.8s}'
+    + '#cbAnnounce .cba-hitch{display:inline-block;flex:0 0 auto;width:6px;height:2px;background:currentColor;margin-top:6px}'
+    + '#cbAnnounce .cba-car{position:relative;display:inline-flex;align-items:center;flex:0 0 auto;height:24px;margin-top:2px;border:2px solid currentColor;border-radius:6px;background:rgba(255,255,255,.75)}'
+    + '#cbAnnounce .cba-car::before,#cbAnnounce .cba-car::after{content:"";position:absolute;bottom:-6px;width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px rgba(255,255,255,.9)}'
+    + '#cbAnnounce .cba-car::before{left:10px}#cbAnnounce .cba-car::after{right:10px}'
+    + '#cbAnnounce .cba-car0{width:46px;justify-content:space-evenly;padding:0 4px}'
+    + '#cbAnnounce .cba-car0 i{width:8px;height:8px;border-radius:2px;background:currentColor;opacity:.4}'
+    + '#cbAnnounce .cba-car1{padding:0 16px}'
+    + '#cbAnnounce .cba-lamp{display:inline-block;flex:0 0 auto;width:7px;height:7px;margin:2px 0 0 5px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 8px #ef4444}'
+    + '#cbAnnounce .cba-rope{display:inline-block;flex:0 0 auto;width:34px;height:0;border-top:2px dashed currentColor;opacity:.7;margin-left:-2px}'
+    + '#cbAnnounce .cba-flag{display:inline-block;flex:0 0 auto;padding:4px 26px 4px 14px;background:currentColor;clip-path:polygon(0 0,100% 0,calc(100% - 12px) 50%,100% 100%,0 100%);transform-origin:left center;animation:cbaWave 1.4s ease-in-out infinite}'
+    + '#cbAnnounce .cba-flag b{color:#fff;font-weight:800}'
+    + '@keyframes cbaBob{0%,100%{transform:translateY(-2px)}50%{transform:translateY(2px)}}'
+    + '@keyframes cbaWave{0%,100%{transform:skewY(-1.5deg)}50%{transform:skewY(1.5deg)}}'
+    + '@keyframes cbaSmoke{from{transform:translate(0,0) scale(.5);opacity:.55}to{transform:translate(-8px,-9px) scale(1.3);opacity:0}}'
     + '@keyframes cbaScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}'
-    + '@media (prefers-reduced-motion:reduce){#cbAnnounce .cba-track{animation:none}#cbAnnounce .cba-view{overflow-x:auto;-webkit-mask-image:none;mask-image:none}#cbAnnounce .cba-dup{display:none}}'
-    + 'html.cb-off #cbAnnounce .cba-track{animation:none}html.cb-off #cbAnnounce .cba-view{overflow-x:auto;-webkit-mask-image:none;mask-image:none}html.cb-off #cbAnnounce .cba-dup{display:none}';
+    + '@media (prefers-reduced-motion:reduce){#cbAnnounce .cba-track,#cbAnnounce .cba-flag,#cbAnnounce .cba-plane,#cbAnnounce .cba-smoke{animation:none}#cbAnnounce .cba-view{overflow-x:auto;-webkit-mask-image:none;mask-image:none}#cbAnnounce .cba-dup{display:none}}'
+    + 'html.cb-off #cbAnnounce .cba-track,html.cb-off #cbAnnounce .cba-flag,html.cb-off #cbAnnounce .cba-plane,html.cb-off #cbAnnounce .cba-smoke{animation:none}html.cb-off #cbAnnounce .cba-view{overflow-x:auto;-webkit-mask-image:none;mask-image:none}html.cb-off #cbAnnounce .cba-dup{display:none}';
+  /* Train: engine at the front (left, the direction of travel), the message sits on the LAST carriage at the back.
+     Airplane: the message is a banner towed on a rope BEHIND the plane. Both drive right-to-left. */
+  var TRAIN_SVG = '<svg class="cba-train" viewBox="0 0 60 30" fill="currentColor" aria-hidden="true">'
+    + '<circle class="cba-smoke" cx="11" cy="2" r="2.4" opacity=".5"/><circle class="cba-smoke cba-smoke2" cx="11" cy="2" r="2.4" opacity=".5"/>'
+    + '<rect x="6" y="3" width="10" height="2.5" rx="1"/><rect x="8" y="5" width="6" height="6"/>'
+    + '<rect x="4" y="10" width="34" height="13" rx="4"/><circle cx="24" cy="9" r="3.2"/>'
+    + '<rect x="38" y="5" width="16" height="18" rx="2"/><rect x="42" y="9" width="8" height="6" rx="1" fill="#fff"/>'
+    + '<path d="M0 24 L6 17 V24Z"/><rect x="2" y="23" width="52" height="2.5" rx="1"/>'
+    + '<g fill="currentColor" stroke="#fff" stroke-width="1.4"><circle cx="10" cy="26.2" r="3.2"/><circle cx="22" cy="26.2" r="3.2"/><circle cx="34" cy="26.2" r="3.2"/><circle cx="46" cy="26.2" r="3.2"/></g></svg>';
+  var PLANE_SVG = '<svg class="cba-plane" viewBox="0 0 48 26" fill="currentColor" aria-hidden="true">'
+    + '<rect x="3" y="10" width="40" height="6" rx="3"/>'
+    + '<path d="M17 10 L27 1 H31 L26 10Z"/><path d="M17 16 L27 25 H31 L26 16Z"/>'
+    + '<path d="M37 10 L45 4 H47 L43 10Z"/><path d="M37 16 L45 22 H47 L43 16Z"/>'
+    + '<circle cx="8" cy="13" r="1.3" fill="#fff"/><circle cx="12.5" cy="13" r="1.3" fill="#fff"/><circle cx="17" cy="13" r="1.3" fill="#fff"/></svg>';
+  function vehicles(style, msg) {
+    var text = esc(msg);
+    var train = '<span class="cba-item cba-veh">' + TRAIN_SVG + '<span class="cba-hitch"></span><span class="cba-car cba-car0"><i></i><i></i><i></i></span><span class="cba-hitch"></span><span class="cba-car cba-car1">' + text + '</span><span class="cba-lamp"></span></span>';
+    var plane = '<span class="cba-item cba-veh">' + PLANE_SVG + '<span class="cba-rope"></span><span class="cba-flag"><b>' + text + '</b></span></span>';
+    if (style === 'train') return train;
+    if (style === 'plane') return plane;
+    if (style === 'text') return '<span class="cba-item">' + text + '</span>';
+    return train + plane;                                   // 'both': train, then airplane, one after the other
+  }
   function banner() {
     var el = $('cbAnnounce');
     var paused = cfg.ordering && cfg.ordering.enabled === false;
@@ -235,20 +278,21 @@
     var show = paused || (a.enabled && a.text);
     if (!show) { if (el) el.remove(); return; }
     if (!$('cbAnnounceCss')) { var st = document.createElement('style'); st.id = 'cbAnnounceCss'; st.textContent = BANNER_CSS; document.head.appendChild(st); }
+    var h = document.querySelector('header'); if (!h) return;
     if (!el) {
-      var h = document.querySelector('header'); if (!h) return;
       el = document.createElement('div'); el.id = 'cbAnnounce'; el.setAttribute('role', 'status');
-      h.parentNode.insertBefore(el, h.nextSibling);
     }
+    if (el.parentElement !== h) h.appendChild(el);
     var lvl = paused ? 'bad' : a.level;
     var colors = { info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'], bad: ['#fef2f2', '#b91c1c'] }[lvl] || ['#eff6ff', '#1d4ed8'];
     var msg = paused ? '⏸️ ' + (cfg.ordering.message || 'Ordering is paused by the admin.') : '📢 ' + a.text;
-    var sig = lvl + '|' + msg;
+    var style = (a.style === 'train' || a.style === 'plane' || a.style === 'text') ? a.style : 'both';
+    var sig = lvl + '|' + style + '|' + msg;
     if (el.getAttribute('data-sig') !== sig) {           // only rebuild when something changed, so the scroll never restarts
       el.setAttribute('data-sig', sig);
       el.style.background = colors[0]; el.style.color = colors[1];
       var tag = paused ? 'Paused' : (lvl === 'bad' ? 'Urgent' : lvl === 'warn' ? 'Notice' : 'News');
-      var item = '<span class="cba-item">' + esc(msg) + '</span>';
+      var item = vehicles(style, msg);
       el.innerHTML = '<span class="cba-tag"><span>' + tag + '</span></span><div class="cba-view"><div class="cba-track">' + item + '<span class="cba-dup" aria-hidden="true">' + item + '</span></div></div>';
       var track = el.querySelector('.cba-track');
       // keep a comfortable reading speed (~55px/s) whatever the text length or screen width
@@ -346,7 +390,7 @@
     var ann = card('📢 Announcement banner', 'Shown at the top for every user.',
       row('Show banner', '', sw('announce', !!a.enabled, 'Show banner'))
       + '<div class="grid gap-2 mt-3"><input id="cbmAnnText" value="' + esc(a.text) + '" maxlength="140" placeholder="e.g. Canteen closes early today at 4 PM" class="w-full border rounded-xl px-3 py-2 text-sm">'
-      + '<div class="flex gap-2"><select id="cbmAnnLevel" class="border rounded-xl px-3 py-2 text-sm"><option value="info"' + (a.level === 'info' ? ' selected' : '') + '>ℹ️ Info</option><option value="warn"' + (a.level === 'warn' ? ' selected' : '') + '>⚠️ Warning</option><option value="bad"' + (a.level === 'bad' ? ' selected' : '') + '>🚨 Urgent</option></select>'
+      + '<div class="flex flex-wrap gap-2"><select id="cbmAnnStyle" aria-label="Banner style" class="border rounded-xl px-3 py-2 text-sm"><option value="both"' + ((a.style || 'both') === 'both' ? ' selected' : '') + '>🚂✈️ Train &amp; Airplane</option><option value="train"' + (a.style === 'train' ? ' selected' : '') + '>🚂 Train</option><option value="plane"' + (a.style === 'plane' ? ' selected' : '') + '>✈️ Airplane</option><option value="text"' + (a.style === 'text' ? ' selected' : '') + '>Plain text</option></select><select id="cbmAnnLevel" class="border rounded-xl px-3 py-2 text-sm"><option value="info"' + (a.level === 'info' ? ' selected' : '') + '>ℹ️ Info</option><option value="warn"' + (a.level === 'warn' ? ' selected' : '') + '>⚠️ Warning</option><option value="bad"' + (a.level === 'bad' ? ' selected' : '') + '>🚨 Urgent</option></select>'
       + '<button type="button" data-act="saveAnn" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-black text-sm">Save banner</button></div></div>');
 
     var shopOpts = '<option value="">All canteens</option>' + shops().map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>'; }).join('');
@@ -389,7 +433,7 @@
     var a = e.target.closest ? e.target.closest('[data-act]') : null; if (!a) return;
     var act = a.getAttribute('data-act');
     if (act === 'delCoupon') { var i = +a.getAttribute('data-i'); var cc = cfg.coupons[i]; if (cc && confirm('Delete coupon ' + cc.code + '?')) { cfg.coupons.splice(i, 1); persist('coupon deleted'); } }
-    if (act === 'saveAnn') { cfg.announcement.text = $('cbmAnnText').value.trim().slice(0, 140); cfg.announcement.level = $('cbmAnnLevel').value; if (cfg.announcement.text) cfg.announcement.enabled = true; persist('banner updated'); }
+    if (act === 'saveAnn') { cfg.announcement.text = $('cbmAnnText').value.trim().slice(0, 140); cfg.announcement.level = $('cbmAnnLevel').value; cfg.announcement.style = $('cbmAnnStyle') ? $('cbmAnnStyle').value : 'both'; if (cfg.announcement.text) cfg.announcement.enabled = true; persist('banner updated'); }
     if (act === 'addCoupon') addCoupon();
   }
   function addCoupon() {
