@@ -41,7 +41,7 @@ Admin
 - The existing Refund button also returns wallet money to the student's wallet.
 Announcement
 - Admin > Master Control > Announcement banner: set separate messages for students, owners, and admins, then Save.
-  Each role sees its own message across the sticky header (hover/touch pauses it); a mascot reads that message
+  Each role sees its own message below the header; it scrolls away with the page (hover/touch pauses it). A mascot reads that message
   aloud once per browser session (again if the text changes).
 
 DEMO TOP-UP: there is no payment gateway, so students can add money to their own wallet for testing

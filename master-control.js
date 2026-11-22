@@ -302,7 +302,7 @@
     if (!el) {
       el = document.createElement('div'); el.id = 'cbAnnounce'; el.setAttribute('role', 'status');
     }
-    if (el.parentElement !== h) h.appendChild(el);
+    if (el.parentElement !== h.parentNode) h.parentNode.insertBefore(el, h.nextSibling);
     var lvl = paused ? 'bad' : a.level;
     var colors = { info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'], bad: ['#fef2f2', '#b91c1c'] }[lvl] || ['#eff6ff', '#1d4ed8'];
     var msg = paused ? '⏸️ ' + (cfg.ordering.message || 'Ordering is paused by the admin.') : '📢 ' + announcementText;
