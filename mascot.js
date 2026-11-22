@@ -59,7 +59,7 @@
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var timer = null, liveTimer = null, activityTimer = null, busy = false, root, wrap, body, bubble, pupils = [], cur = 'samosa';
   var showSource = 'random';
-  var queue = [];
+  var queue = [], annDone = {};   // annDone: callbacks fired when an announcement line is actually spoken
 
   /* ---------------- styles ---------------- */
   var css = '\
@@ -217,7 +217,7 @@ html.cb-off .cbm{display:none!important}\
     var c = CHARS[cur];
     bubble.className = 'cbm-bubble' + (live ? ' live' : '');
     bubble.textContent = '';
-    var s = document.createElement('small'); s.textContent = c.emoji + ' ' + c.name + (live ? ' • live update' : '');
+    var s = document.createElement('small'); s.textContent = c.emoji + ' ' + c.name + (live ? (String(text).indexOf('📢') === 0 ? ' • announcement' : ' • live update') : '');
     bubble.appendChild(s); bubble.appendChild(document.createTextNode(text));
     void bubble.offsetWidth; bubble.classList.add('on');
     var dur = Math.min(READ_MAX, Math.max(ms || 0, READ_BASE + String(text).length * READ_PER_CHAR));
@@ -237,7 +237,7 @@ html.cb-off .cbm{display:none!important}\
 
   /* what the mascot says: a pending live update, or a live fact, or a joke */
   function line() {
-    if (showSource === 'live' && queue.length) return { t: queue.shift(), live: true };
+    if (showSource === 'live' && queue.length) { var qm = queue.shift(); if (annDone[qm]) { var cbf = annDone[qm]; delete annDone[qm]; try { cbf(); } catch (e) {} } return { t: qm, live: true }; }
     if (!loggedIn()) return { t: pick(LOGIN_LINES), live: false };
     if (Math.random() < 0.6) { var f = liveFact(); if (f) return { t: f, live: true }; }
     var c = CHARS[cur];
@@ -631,6 +631,18 @@ html.cb-off .cbm{display:none!important}\
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();
 
   window.CampusBiteMascot = {
+    /* Make a mascot read an announcement aloud (front of the live queue).
+       onSpoken() fires once the mascot has really said it. Returns false if it could not be queued. */
+    announce: function (text, onSpoken) {
+      text = String(text || '').trim();
+      if (!text) return false;
+      var msg = '📢 ' + text.slice(0, 160);
+      if (queue.indexOf(msg) < 0) queue.unshift(msg);
+      if (queue.length > 4) queue.length = 4;
+      if (typeof onSpoken === 'function') annDone[msg] = onSpoken;
+      requestLive();
+      return true;
+    },
     show: function (kind, who) { return show(kind, who, 'random'); },
     setEnabled: function (v) {
       userOff = !v; try { localStorage.setItem(KEY, v ? '0' : '1'); } catch (e) {}

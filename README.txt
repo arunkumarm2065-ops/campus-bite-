@@ -19,3 +19,31 @@ Setup:
 
 The app uses Firestore collection `campusbite`, document `state` as the shared live application state.
 Admin-created Student/Owner accounts are created through a secondary Firebase Auth app so the Admin session stays signed in. Passwords are never stored in Firestore.
+
+--- Campus Wallet, admin wallet monitor, order tools, scrolling banner ---
+New files (load order is already set at the bottom of index.html): wallet.js, order-tools.js
+Changed files: index.html (placeOrder pays from the wallet), master-control.js (scrolling banner),
+               mascot.js (mascots can read an announcement), firestore.rules (wallets + walletTxns)
+
+Firestore collections added:
+- wallets/{studentUid}   balance, studentId, studentName, updatedAt
+- walletTxns/{autoId}    immutable ledger: type (topup | payment | refund | admin_credit), amount, balanceAfter, token, note, createdAt...
+Re-publish firestore.rules after copying it. No indexes are needed.
+
+Student
+- 👛 balance chip in the header opens the wallet (add money + history). "Campus Wallet" at checkout takes the money
+  from this balance; the order, the balance change and the ledger line are saved in ONE transaction.
+- My Orders has a Sort menu (newest, oldest, amount high/low, active first); the choice is remembered.
+Admin
+- Wallet tab: money held, spent/added today, every student's balance (+ Add money), a searchable ledger
+  and a "Refunds due" list for cancelled wallet orders. Click an order # anywhere to see the customer.
+- Order History: click the order # to see the customer name, ID and full order details.
+- The existing Refund button also returns wallet money to the student's wallet.
+Announcement
+- Admin > Master Control > Announcement banner: type a message, Save. It scrolls across the top for everyone
+  (hover/touch pauses it) and a mascot reads it aloud once per browser session (again if the text changes).
+
+DEMO TOP-UP: there is no payment gateway, so students can add money to their own wallet for testing
+(max Rs 2000 per top-up, Rs 5000 balance). For real use set ALLOW_STUDENT_TOPUP = false in wallet.js AND
+demoTopUpAllowed() to return false in firestore.rules; then only admins add money (Admin > Wallet > Add money).
+

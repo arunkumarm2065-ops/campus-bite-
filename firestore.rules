@@ -14,6 +14,50 @@ service cloud.firestore {
       return isActiveUser() && userDoc().role == 'admin';
     }
 
+    function isStudent() { return isActiveUser() && userDoc().role == 'student'; }
+
+    // ---- Campus Wallet -------------------------------------------------------
+    // DEMO SWITCH: there is no payment gateway, so students may top up their own wallet for
+    // testing (max 2000 per top-up, 5000 balance). Change this to `false` for real use and also
+    // set ALLOW_STUDENT_TOPUP = false in wallet.js: then only admins can add money.
+    function demoTopUpAllowed() { return true; }
+
+    match /wallets/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if isAdmin() || (
+        isStudent() && request.auth.uid == uid &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.balance >= 0 &&
+        (request.resource.data.balance == 0 || (demoTopUpAllowed() && request.resource.data.balance <= 2000))
+      );
+      allow update: if isAdmin() || (
+        isStudent() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'updatedAt', 'studentName']) &&
+        request.resource.data.balance >= 0 &&
+        request.resource.data.balance <= 5000 &&
+        (
+          request.resource.data.balance <= resource.data.balance ||                       // paying for an order
+          (demoTopUpAllowed() && request.resource.data.balance - resource.data.balance <= 2000)  // demo top-up
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Immutable ledger: lines can be added but never edited or deleted from the app.
+    match /walletTxns/{txnId} {
+      allow read: if signedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create: if isAdmin() || (
+        isStudent() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.type in ['topup', 'payment'] &&
+        (request.resource.data.type == 'payment' || demoTopUpAllowed()) &&
+        // the ledger line must match the wallet balance written in the same transaction
+        getAfter(/databases/$(database)/documents/wallets/$(request.auth.uid)).data.balance == request.resource.data.balanceAfter
+      );
+      allow update, delete: if false;
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isAdmin();

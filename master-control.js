@@ -218,12 +218,23 @@
   function refreshCart() { try { if (typeof renderCart === 'function') renderCart(); } catch (e) { console.error(e); } }
 
   /* ---------------- announcement banner + global switches ---------------- */
+  var BANNER_CSS = '#cbAnnounce{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:0 0 0 12px;height:40px;font-weight:800;font-size:14px;border-bottom:1px solid rgba(0,0,0,.06)}'
+    + '#cbAnnounce .cba-tag{flex:0 0 auto;position:relative;z-index:2;padding:3px 10px;border-radius:9999px;background:currentColor;font-size:11px;letter-spacing:.06em;text-transform:uppercase}'
+    + '#cbAnnounce .cba-tag span{color:#fff;mix-blend-mode:normal}'
+    + '#cbAnnounce .cba-view{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}'
+    + '#cbAnnounce .cba-track{display:inline-flex;white-space:nowrap;will-change:transform;animation:cbaScroll var(--cba-dur,24s) linear infinite}'
+    + '#cbAnnounce:hover .cba-track,#cbAnnounce:active .cba-track,#cbAnnounce:focus-within .cba-track{animation-play-state:paused}'
+    + '#cbAnnounce .cba-item{padding-right:72px}'
+    + '@keyframes cbaScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}'
+    + '@media (prefers-reduced-motion:reduce){#cbAnnounce .cba-track{animation:none}#cbAnnounce .cba-view{overflow-x:auto;-webkit-mask-image:none;mask-image:none}#cbAnnounce .cba-dup{display:none}}'
+    + 'html.cb-off #cbAnnounce .cba-track{animation:none}html.cb-off #cbAnnounce .cba-view{overflow-x:auto;-webkit-mask-image:none;mask-image:none}html.cb-off #cbAnnounce .cba-dup{display:none}';
   function banner() {
     var el = $('cbAnnounce');
     var paused = cfg.ordering && cfg.ordering.enabled === false;
     var a = cfg.announcement || {};
     var show = paused || (a.enabled && a.text);
     if (!show) { if (el) el.remove(); return; }
+    if (!$('cbAnnounceCss')) { var st = document.createElement('style'); st.id = 'cbAnnounceCss'; st.textContent = BANNER_CSS; document.head.appendChild(st); }
     if (!el) {
       var h = document.querySelector('header'); if (!h) return;
       el = document.createElement('div'); el.id = 'cbAnnounce'; el.setAttribute('role', 'status');
@@ -231,8 +242,34 @@
     }
     var lvl = paused ? 'bad' : a.level;
     var colors = { info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'], bad: ['#fef2f2', '#b91c1c'] }[lvl] || ['#eff6ff', '#1d4ed8'];
-    el.style.cssText = 'background:' + colors[0] + ';color:' + colors[1] + ';padding:10px 16px;text-align:center;font-weight:800;font-size:14px;border-bottom:1px solid rgba(0,0,0,.06)';
-    el.textContent = (paused ? '⏸️ ' + (cfg.ordering.message || 'Ordering is paused by the admin.') : '📢 ' + a.text);
+    var msg = paused ? '⏸️ ' + (cfg.ordering.message || 'Ordering is paused by the admin.') : '📢 ' + a.text;
+    var sig = lvl + '|' + msg;
+    if (el.getAttribute('data-sig') !== sig) {           // only rebuild when something changed, so the scroll never restarts
+      el.setAttribute('data-sig', sig);
+      el.style.background = colors[0]; el.style.color = colors[1];
+      var tag = paused ? 'Paused' : (lvl === 'bad' ? 'Urgent' : lvl === 'warn' ? 'Notice' : 'News');
+      var item = '<span class="cba-item">' + esc(msg) + '</span>';
+      el.innerHTML = '<span class="cba-tag"><span>' + tag + '</span></span><div class="cba-view"><div class="cba-track">' + item + '<span class="cba-dup" aria-hidden="true">' + item + '</span></div></div>';
+      var track = el.querySelector('.cba-track');
+      // keep a comfortable reading speed (~55px/s) whatever the text length or screen width
+      var half = track.scrollWidth / 2 || 600;
+      track.style.setProperty('--cba-dur', Math.max(12, Math.round((half + (el.clientWidth || 360)) / 55)) + 's');
+      el.setAttribute('aria-label', msg);
+    }
+    if (!paused) tellMascot(a.text);
+  }
+  /* Ask the mascot to read the announcement once per browser session (re-reads only when the text changes). */
+  function tellMascot(text) {
+    if (!text || !role()) return;                        // only once someone is signed in
+    var sig = 0, i; for (i = 0; i < text.length; i++) sig = (sig * 31 + text.charCodeAt(i)) | 0;
+    sig = 'a' + sig;
+    try { if (sessionStorage.getItem('cb_ann_said') === sig) return; } catch (e) {}
+    var tries = 0;
+    (function go() {
+      if (window.CampusBiteMascot && typeof CampusBiteMascot.announce === 'function') {
+        CampusBiteMascot.announce(text, function () { try { sessionStorage.setItem('cb_ann_said', sig); } catch (e) {} });
+      } else if (tries++ < 20) { setTimeout(go, 500); }
+    })();
   }
   var lastAnim = true;
   function applyGlobals() {
@@ -419,6 +456,8 @@
   /* ---------------- boot ---------------- */
   function boot() {
     mountAdmin(); startWhenSignedIn(); applyGlobals();
+    var lv = $('loginView');
+    if (lv && window.MutationObserver) new MutationObserver(function () { setTimeout(banner, 300); }).observe(lv, { attributes: true, attributeFilter: ['class'] });
     // when the shared cart/menu re-renders the checkout area is the same node, so nothing else is needed
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();
