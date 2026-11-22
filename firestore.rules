@@ -78,6 +78,33 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- Chatbot (admin turns it on/off, picks the icon and teaches answers; everyone signed in can read) ----
+    match /chatbotConfig/{id} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin() &&
+        request.resource.data.get('icon', '') is string &&
+        request.resource.data.get('icon', '').size() <= 60000;
+      allow delete: if isAdmin();
+    }
+    match /chatbotTraining/{id} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin() &&
+        request.resource.data.reply is string && request.resource.data.reply.size() <= 1000 &&
+        request.resource.data.triggers is list && request.resource.data.triggers.size() <= 20;
+      allow delete: if isAdmin();
+    }
+    // Questions the bot could not answer: any signed-in user may add/increase the counter, only admins read or clear them.
+    match /chatbotUnanswered/{id} {
+      allow read, delete: if isAdmin();
+      allow create: if isActiveUser() &&
+        request.resource.data.keys().hasOnly(['text', 'count', 'lastAt']) &&
+        request.resource.data.text is string && request.resource.data.text.size() <= 120 &&
+        request.resource.data.count == 1;
+      allow update: if isActiveUser() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'lastAt']) &&
+        request.resource.data.count == resource.data.count + 1;
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isAdmin();

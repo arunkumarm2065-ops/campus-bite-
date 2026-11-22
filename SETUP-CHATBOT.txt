@@ -1,0 +1,35 @@
+CampusBite — admin tab scroll + trainable chatbot
+=================================================
+
+FILES
+  admin-tabs.js      NEW      makes the admin tab bar scroll sideways (fixes tabs cut off after "Special Time/Tickets…")
+  chatbot.js         REPLACE  (old one is overwritten) icon / name / on-off / taught answers
+  chatbot-admin.js   NEW      Admin ▸ 🤖 Chatbot tab
+  firestore.rules    REPLACE  and publish (adds chatbotConfig, chatbotTraining, chatbotUnanswered)
+
+STEP 1 — index.html: add these two lines at the very bottom, after <script src="chatbot.js"></script>
+  <script src="chatbot-admin.js"></script>
+  <script src="admin-tabs.js"></script>
+
+STEP 2 — Firebase console > Firestore > Rules: paste firestore.rules and Publish.
+         (No indexes needed. No Cloud Functions needed.)
+
+HOW IT WORKS
+ • Tabs: the row of admin tabs scrolls (swipe, trackpad, mouse wheel over the tabs, or the thin bar under them).
+   The tab you click scrolls into view.
+ • Admin ▸ 🤖 Chatbot
+     - Switch at the top: ON/OFF for everyone, saved to Firestore (button disappears for all users when OFF).
+     - Icon: 14 emoji presets, any emoji you type, or 📷 upload a picture (cropped to a square, shrunk to ~128px).
+       Also: bot name, first message ({name} is replaced by the bot name), and the "I don't know" message.
+       Press "Save settings" for these.
+     - Teach the bot: triggers (one per line) + reply.
+         phrase   "hostel timing"  -> fires when the message contains those words
+         keyword  "wifi"           -> fires when that word appears
+         command  "/offers"        -> fires only when the user types exactly /offers
+       Reply can use **bold** and live values {wallet} {timings} {menu} {name}.
+       Choose who gets it (Everyone / Students / Owners / Admins) and optionally "Show first trigger as a quick button".
+       Pause, edit or delete any answer. Taught answers are checked BEFORE the built-in ones.
+     - Questions the bot could not answer: collected automatically (question text only, no names).
+       Press Teach to pre-fill the trigger, write the reply, Add. Or Dismiss.
+     - Test the bot: type a message and see the reply (choose which role to test as).
+ • The chat button now shows only after sign-in (before, it showed on the login screen too).

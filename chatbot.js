@@ -2,6 +2,7 @@
    CampusBite Chatbot — chatbot.js
    A floating 💬 assistant on every page. It works out of the box (no server, free) and answers
    from your live data: menu, prices, stock, canteen timings, the student's wallet, orders and rewards.
+   Admin can switch it on/off, change its icon and teach it answers (Admin > Chatbot tab).
    Optional AI: set AI_ENABLED = true after deploying the askCampusBite Cloud Function and it will
    answer everything else with Claude (the API key stays on the server, never in this file).
    Load last, after wallet.js, rewards.js and cb-functions.js.
@@ -11,7 +12,11 @@
   if (window.CBChat) return;
 
   var AI_ENABLED = false;          // true = unknown questions go to the askCampusBite Cloud Function
-  var BOT_NAME = 'CampusBite Assistant';
+  var BOT_NAME = 'CampusBite Assistant';   // default name; the admin can change it in Admin > Chatbot
+  var DEFAULT_FALLBACK = 'I am not sure about that one 🤔. Try asking about the <b>menu</b>, a food\'s <b>price</b>, <b>canteen timings</b>, your <b>order</b> or <b>wallet</b> — or use the <b>Help / Report</b> tab to reach the admin.';
+  var CFG = { enabled: true, name: '', icon: '💬', iconType: 'emoji', greeting: '', fallback: '' };   // filled from Firestore chatbotConfig/settings
+  var TRAIN = [];                                                                                     // filled from Firestore chatbotTraining
+  function botName() { return CFG.name || BOT_NAME; }
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -57,12 +62,14 @@
   /* ---------------- intents ---------------- */
   var CHIPS = ['What is on the menu?', 'Cheapest item', 'Is the canteen open?', 'Where is my order?', 'My wallet balance', 'My rewards'];
 
-  function answer(raw) {
+  function answer(raw, asRole) {
     var q = norm(raw), r = role();
     if (!q) return { html: 'Type a question and I will help!' };
+    var tr = trainedAnswer(raw, q, asRole);       // answers taught by the admin win over the built-in ones
+    if (tr) return tr;
 
     if (has(q, ['hi', 'hello', 'hey', 'hii', 'namaste', 'vanakkam', 'good morning', 'good afternoon', 'good evening']) && q.split(' ').length <= 4)
-      return { html: 'Hi! 👋 I am the ' + BOT_NAME + '. Ask me about food, prices, your orders or your wallet.' };
+      return { html: 'Hi! 👋 I am the ' + esc(botName()) + '. Ask me about food, prices, your orders or your wallet.' };
     if (has(q, ['thanks', 'thank you', 'thx', 'nandri'])) return { html: 'Happy to help! 😊 Enjoy your meal.' };
     if (has(q, ['bye', 'goodbye'])) return { html: 'Bye! See you at the canteen. 👋' };
 
@@ -131,7 +138,7 @@
     if (has(q, ['help', 'problem', 'complaint', 'report', 'issue', 'contact', 'support']))
       return { html: 'Use the <b>Help / Report</b> tab to send a ticket to the admin. Include your order number so it is solved faster.' };
     if (has(q, ['who are you', 'your name', 'what can you do']))
-      return { html: 'I am the ' + BOT_NAME + ' 🤖. I can tell you the menu, prices, stock, canteen timings, your order status, wallet balance and rewards.' };
+      return { html: 'I am the ' + esc(botName()) + ' 🤖. I can tell you the menu, prices, stock, canteen timings, your order status, wallet balance and rewards.' };
     return null;
   }
 
@@ -149,13 +156,108 @@
     return parts.join('\n');
   }
 
+  /* ---------------- admin-trained answers (Admin ▸ 🤖 Chatbot) ---------------- */
+  function audienceOk(t, r) { return !t.audience || t.audience === 'all' || t.audience === r; }
+  function tokenHit(w, tokens) {
+    return tokens.some(function (t) { return t === w || (w.length > 3 && t.length > 3 && (t.indexOf(w) === 0 || w.indexOf(t) === 0)); });
+  }
+  function menuList() {
+    var av = foods().filter(inStock);
+    if (!av.length) return 'Nothing is in stock right now.';
+    return av.slice(0, 10).map(function (m) { return '• ' + foodLine(m); }).join('<br>') + (av.length > 10 ? '<br>…and ' + (av.length - 10) + ' more.' : '');
+  }
+  /* Admin text is escaped first; only these tags are added back: **bold**, new lines, {wallet} {timings} {menu} {name} */
+  function fillReply(text) {
+    var r = role();
+    return esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')
+      .replace(/\{wallet\}/gi, function () { return r === 'student' && window.CBWallet ? rs(CBWallet.balance) : 'shown in your wallet'; })
+      .replace(/\{timings\}/gi, function () { return timings(); })
+      .replace(/\{menu\}/gi, function () { return menuList(); })
+      .replace(/\{name\}/gi, function () { return esc(botName()); });
+  }
+  function trainedAnswer(raw, q, asRole) {
+    var r = asRole || role(), cmd = String(raw || '').trim().toLowerCase(), tokens = q.split(' '), best = null, bestScore = 0;
+    TRAIN.forEach(function (t) {
+      if (!t || t.active === false || !t.reply || !audienceOk(t, r)) return;
+      (t.triggers || []).forEach(function (trig) {
+        var s = 0, one = String(trig || '').trim();
+        if (!one) return;
+        if (one.charAt(0) === '/') { if (cmd === one.toLowerCase()) s = 1000; }          // /command: exact
+        else {
+          var tn = norm(one); if (!tn) return;
+          var words = tn.split(' ');
+          if (q === tn) s = 500 + tn.length;                                              // the whole message
+          else if (words.length === 1) { if (tokenHit(tn, tokens)) s = 120 + tn.length; } // one keyword
+          else if ((' ' + q + ' ').indexOf(' ' + tn + ' ') >= 0) s = 200 + tn.length;     // phrase inside message
+          else if (words.every(function (w) { return tokenHit(w, tokens); })) s = 60 + tn.length; // all words, any order
+        }
+        if (s > bestScore) { best = t; bestScore = s; }
+      });
+    });
+    return best ? { html: fillReply(best.reply), trained: best.id } : null;
+  }
+
+  /* ---------------- settings from Firestore (cached so there is no flash) ---------------- */
+  var LS = 'cb_chatbot_cfg';
+  function mergeCfg(d) {
+    if (!d || typeof d !== 'object') return;
+    if (typeof d.enabled === 'boolean') CFG.enabled = d.enabled;
+    if (typeof d.name === 'string') CFG.name = d.name.slice(0, 40);
+    if (typeof d.greeting === 'string') CFG.greeting = d.greeting.slice(0, 300);
+    if (typeof d.fallback === 'string') CFG.fallback = d.fallback.slice(0, 400);
+    if (d.iconType === 'image' && typeof d.icon === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(d.icon)) { CFG.iconType = 'image'; CFG.icon = d.icon; }
+    else if (typeof d.icon === 'string' && d.icon.trim()) { CFG.iconType = 'emoji'; CFG.icon = d.icon.trim().slice(0, 16); }
+  }
+  try { mergeCfg(JSON.parse(localStorage.getItem(LS) || 'null')); } catch (e) {}
+  function db() { return window.firebase && firebase.apps && firebase.apps.length ? firebase.firestore() : null; }
+  function me() { return window.firebase && firebase.apps && firebase.apps.length ? firebase.auth().currentUser : null; }
+
+  var unsubs = [], liveFor = '';
+  function stopLive() { unsubs.forEach(function (f) { try { f(); } catch (e) {} }); unsubs = []; liveFor = ''; TRAIN = []; }
+  function startLive() {
+    var u = me(), d = db(), key = (u && d) ? u.uid : '';
+    if (key === liveFor) return;
+    stopLive(); if (!key) return; liveFor = key;
+    unsubs.push(d.collection('chatbotConfig').doc('settings').onSnapshot(function (s) {
+      if (s.exists) { mergeCfg(s.data()); try { localStorage.setItem(LS, JSON.stringify(CFG)); } catch (e) {} }
+      applyCfg();
+    }, function (e) { console.error('Chatbot settings listener failed:', e); }));
+    unsubs.push(d.collection('chatbotTraining').onSnapshot(function (s) {
+      TRAIN = s.docs.map(function (x) { var o = x.data(); o.id = x.id; return o; });
+      chips();
+    }, function (e) { console.error('Chatbot training listener failed:', e); }));
+  }
+
+  /* questions the bot could not answer → Admin ▸ Chatbot ▸ "Teach" list (no user identity is stored) */
+  var logged = {};
+  function logUnanswered(raw) {
+    try {
+      var d = db(); if (!d || !me()) return;
+      var text = norm(raw).slice(0, 120); if (text.length < 3 || logged[text]) return; logged[text] = 1;
+      d.collection('chatbotUnanswered').doc(text.replace(/ /g, '-').slice(0, 100)).set({
+        text: text, count: firebase.firestore.FieldValue.increment(1), lastAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(function () {});
+    } catch (e) {}
+  }
+
   /* ---------------- widget ---------------- */
-  var launcher, panel, log, input, hist = [], busy = false;
+  var launcher, panel, log, input, hist = [], busy = false, lastRole = '';
+  function iconHtml() { return CFG.iconType === 'image' ? '<img alt="" src="' + CFG.icon + '">' : esc(CFG.icon || '💬'); }
+  function isOpen() { return !!panel && panel.classList.contains('open'); }
+  function greetingHtml() {
+    return CFG.greeting
+      ? esc(CFG.greeting).replace(/\{name\}/gi, esc(botName())).replace(/\n/g, '<br>')
+      : 'Hi! 👋 I am the ' + esc(botName()) + '. What would you like to know?';
+  }
+  function fallbackHtml() { return CFG.fallback ? esc(CFG.fallback).replace(/\n/g, '<br>') : DEFAULT_FALLBACK; }
+
   function css() {
     if ($('cbChatCss')) return;
     var st = document.createElement('style'); st.id = 'cbChatCss';
-    st.textContent = '#cbChatBtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9990;width:56px;height:56px;border-radius:9999px;border:0;background:#f97316;color:#fff;font-size:26px;box-shadow:0 10px 30px rgba(249,115,22,.45);cursor:pointer;transition:transform .2s}'
+    st.textContent = '#cbChatBtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9990;width:56px;height:56px;padding:0;overflow:hidden;line-height:1;border-radius:9999px;border:0;background:#f97316;color:#fff;font-size:26px;box-shadow:0 10px 30px rgba(249,115,22,.45);cursor:pointer;transition:transform .2s}'
       + '#cbChatBtn:hover{transform:scale(1.07)}#cbChatBtn:focus-visible{outline:3px solid #0f172a;outline-offset:3px}'
+      + '#cbChatBtn img,#cbChatAv img{width:100%;height:100%;object-fit:cover;display:block}'
+      + '#cbChatAv{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;font-size:20px;overflow:hidden;flex:none}'
       + '#cbChat{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9991;width:min(380px,calc(100vw - 32px));height:min(540px,calc(100vh - 120px));background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 24px 60px rgba(15,23,42,.25);display:none;flex-direction:column;overflow:hidden;font-family:system-ui,Arial,sans-serif}'
       + '#cbChat.open{display:flex;animation:cbChatIn .25s cubic-bezier(.22,1,.36,1)}@keyframes cbChatIn{from{opacity:0;transform:translateY(14px) scale(.97)}}'
       + '#cbChat header{background:#0f172a;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}#cbChat header b{font-size:14px}#cbChat header small{display:block;font-size:11px;color:#94a3b8}'
@@ -172,10 +274,10 @@
     if ($('cbChatBtn')) return;
     css();
     launcher = document.createElement('button');
-    launcher.id = 'cbChatBtn'; launcher.type = 'button'; launcher.setAttribute('aria-label', 'Open chat assistant'); launcher.setAttribute('aria-expanded', 'false'); launcher.textContent = '💬';
+    launcher.id = 'cbChatBtn'; launcher.type = 'button'; launcher.setAttribute('aria-expanded', 'false'); launcher.style.display = 'none';
     panel = document.createElement('div');
-    panel.id = 'cbChat'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', BOT_NAME);
-    panel.innerHTML = '<header><span style="font-size:22px">🤖</span><div><b>' + BOT_NAME + '</b><small>Ask about food, orders & wallet</small></div><button type="button" id="cbChatX" aria-label="Close chat">×</button></header>'
+    panel.id = 'cbChat'; panel.setAttribute('role', 'dialog');
+    panel.innerHTML = '<header><span id="cbChatAv"></span><div><b id="cbChatName"></b><small>Ask about food, orders &amp; wallet</small></div><button type="button" id="cbChatX" aria-label="Close chat">×</button></header>'
       + '<div id="cbChatLog" aria-live="polite"></div><div class="cbc-chips" id="cbChatChips"></div>'
       + '<form id="cbChatForm" autocomplete="off"><input id="cbChatIn" maxlength="300" placeholder="Type your question…" aria-label="Your message"><button type="submit">Send</button></form>';
     document.body.appendChild(launcher); document.body.appendChild(panel);
@@ -184,18 +286,39 @@
     $('cbChatX').addEventListener('click', toggle);
     $('cbChatForm').addEventListener('submit', function (e) { e.preventDefault(); send(input.value); input.value = ''; });
     $('cbChatChips').addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('button'); if (b) send(b.textContent); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && panel.classList.contains('open')) toggle(); });
-    add('bot', 'Hi! 👋 I am the ' + BOT_NAME + '. What would you like to know?');
-    chips();
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) toggle(); });
+    add('bot', greetingHtml()).id = 'cbGreet';
+    applyCfg(); chips();
+  }
+  /* shows / hides the bot and repaints icon, name and greeting from the admin's settings */
+  function applyCfg() {
+    if (!launcher) return;
+    var show = CFG.enabled && !!role();
+    launcher.style.display = show ? '' : 'none';
+    if (!show && isOpen()) toggle();
+    paintLauncher();
+    var av = $('cbChatAv'); if (av) av.innerHTML = iconHtml();
+    var nm = $('cbChatName'); if (nm) nm.textContent = botName();
+    panel.setAttribute('aria-label', botName());
+    var g = $('cbGreet'); if (g) g.innerHTML = greetingHtml();
+  }
+  function paintLauncher() {
+    if (!launcher) return;
+    launcher.innerHTML = isOpen() ? '×' : iconHtml();
+    launcher.setAttribute('aria-label', isOpen() ? 'Close chat assistant' : 'Open ' + botName());
   }
   function chips() {
     var el = $('cbChatChips'); if (!el) return;
-    var list = role() === 'student' ? CHIPS : ['What is on the menu?', 'Cheapest item', 'Is the canteen open?', 'How do I pay?', 'Need help'];
+    var r = role(), list = r === 'student' ? CHIPS.slice() : ['What is on the menu?', 'Cheapest item', 'Is the canteen open?', 'How do I pay?', 'Need help'];
+    TRAIN.forEach(function (t) {                                   // admin-made quick buttons
+      var label = t && t.active !== false && t.chip && audienceOk(t, r) && (t.triggers || [])[0];
+      if (label && list.indexOf(label) < 0) list.push(label);
+    });
     el.innerHTML = list.map(function (c) { return '<button type="button">' + esc(c) + '</button>'; }).join('');
   }
   function toggle() {
-    var open = !panel.classList.contains('open');
-    panel.classList.toggle('open', open); launcher.setAttribute('aria-expanded', String(open)); launcher.textContent = open ? '×' : '💬';
+    var open = !isOpen();
+    panel.classList.toggle('open', open); launcher.setAttribute('aria-expanded', String(open)); paintLauncher();
     if (open) { chips(); setTimeout(function () { input.focus(); }, 50); }
   }
   function add(who, html) {
@@ -217,10 +340,26 @@
         .then(function () { busy = false; log.scrollTop = log.scrollHeight; });
       return;
     }
-    add('bot', 'I am not sure about that one 🤔. Try asking about the <b>menu</b>, a food\'s <b>price</b>, <b>canteen timings</b>, your <b>order</b> or <b>wallet</b> — or use the <b>Help / Report</b> tab to reach the admin.');
+    logUnanswered(text);
+    add('bot', fallbackHtml());
   }
 
-  function boot() { mount(); }
+  function sync() {
+    startLive();
+    var r = role();
+    if (r !== lastRole) { lastRole = r; chips(); }
+    applyCfg();
+  }
+  function boot() {
+    mount();
+    if (window.firebase && firebase.apps && firebase.apps.length) firebase.auth().onAuthStateChanged(function () { setTimeout(sync, 250); });
+    setInterval(sync, 2000); sync();
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();
-  window.CBChat = { open: function () { mount(); if (!panel.classList.contains('open')) toggle(); }, answer: answer };
+  window.CBChat = {
+    open: function () { mount(); if (!isOpen()) toggle(); },
+    answer: answer,
+    fallbackHtml: fallbackHtml,
+    get config() { return CFG; }
+  };
 })();
