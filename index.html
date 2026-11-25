@@ -291,6 +291,7 @@ header>div>div:last-child{min-width:0}
       <button class="cat-btn px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-sm" data-cat="Snacks">Snacks</button>
       <button class="cat-btn px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-sm" data-cat="Beverages">Beverages</button>
       <button class="cat-btn px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-sm" data-cat="Favorites">♥ Favorites</button>
+      <button class="cat-btn px-4 py-2 rounded-full bg-white border border-red-200 text-red-600 font-bold text-sm" data-cat="Clearance">🔥 Clearance</button>
     </div>
 
     <div class="flex items-end justify-between mb-3">
@@ -618,6 +619,9 @@ header>div>div:last-child{min-width:0}
         </label>
         <div class="grid grid-cols-2 gap-3"><input id="foodPrice" type="number" class="border rounded-xl px-3 py-2" placeholder="Price ₹"><input id="foodStock" type="number" class="border rounded-xl px-3 py-2" placeholder="Stock count"></div>
         <input id="foodTime" class="w-full border rounded-xl px-3 py-2" placeholder="Prep time e.g. 5 min">
+        <div class="border border-orange-200 rounded-xl p-3 bg-orange-50"><label class="text-sm font-bold">🔥 Clearance sale <span class="font-normal text-slate-500">(optional)</span></label>
+          <div class="grid grid-cols-2 gap-3 mt-2"><input id="foodSalePct" type="number" min="0" max="90" step="1" class="border rounded-xl px-3 py-2 bg-white" placeholder="Discount % (empty = no sale)" aria-label="Clearance discount percent"><input id="foodSaleUntil" type="datetime-local" class="border rounded-xl px-3 py-2 bg-white" aria-label="Clearance sale ends at"></div>
+          <p class="text-xs text-slate-500 mt-2">Students see the old price crossed out. Leave the end time empty to run the sale until you clear the discount.</p></div>
         <div class="border rounded-xl p-3"><label class="text-sm font-bold">Food Image</label><input id="foodImage" type="file" accept="image/*" class="w-full mt-2 text-sm"><img id="foodImagePreview" class="hidden mt-3 w-full h-32 object-cover rounded-xl"></div>
         <button id="saveFood" class="w-full py-3 rounded-xl bg-slate-900 text-white font-black">Save Food</button>
       </div>
@@ -688,6 +692,30 @@ header>div>div:last-child{min-width:0}
     </div>
   </div>
 
+<script>
+/* ===== Clearance sale helpers: a food item can carry salePct (1-90) and optional saleUntil (ms epoch) ===== */
+function saleOn(x){var p=Number(x&&x.salePct)||0;if(p<=0||p>90)return false;var u=Number(x.saleUntil)||0;return !u||u>Date.now();}
+function effPrice(x){var base=Number(x&&x.price)||0;return saleOn(x)?Math.max(1,Math.round(base*(100-Number(x.salePct))/100)):base;}
+function saleEndsText(x){var u=Number(x&&x.saleUntil)||0;if(!u)return '';var d=new Date(u),t=new Date(),same=d.toDateString()===t.toDateString();
+ return 'Ends '+(same?'today ':d.toLocaleDateString('en-IN',{day:'numeric',month:'short'})+' ')+d.toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});}
+function saleBadge(x){return saleOn(x)?'<span class="absolute top-2 left-2 z-[1] rounded-full bg-red-500 text-white text-[11px] font-black px-2.5 py-1 shadow">🔥 '+Number(x.salePct)+'% OFF</span>':'';}
+function priceBlock(x){
+ if(!saleOn(x))return '<b class="text-orange-600 whitespace-nowrap">₹'+x.price+'</b>';
+ var e=saleEndsText(x);
+ return '<div class="text-right whitespace-nowrap"><b class="text-red-600">₹'+effPrice(x)+'</b><div class="text-xs text-slate-400 line-through">₹'+x.price+'</div>'+(e?'<div class="text-[10px] font-bold text-red-500">'+e+'</div>':'')+'</div>';
+}
+function adminPriceText(x){return saleOn(x)?'₹'+effPrice(x)+' (was ₹'+x.price+', '+Number(x.salePct)+'% off 🔥)':'₹'+x.price;}
+function saleInputValue(ms){ms=Number(ms)||0;if(!ms)return '';var d=new Date(ms),p=function(n){return String(n).padStart(2,'0');};
+ return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
+function resetSaleFields(){var a=document.getElementById('foodSalePct'),b=document.getElementById('foodSaleUntil');if(a)a.value='';if(b)b.value='';}
+document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('#ownerAddFood,#addFoodBtn'))setTimeout(resetSaleFields,0);},true);
+/* when a sale ends (or starts) while the page is open, repaint prices without a refresh */
+(function(){var last='';setInterval(function(){try{
+ if(typeof menu==='undefined'||!Array.isArray(menu))return;
+ var sig=menu.map(function(x){return saleOn(x)?1:0;}).join('');
+ if(last&&sig!==last){renderMenu();renderCart();if(typeof renderAdmin==='function')renderAdmin();if(typeof renderOwner==='function')renderOwner();}
+ last=sig;}catch(e){}},20000);})();
+</script>
 <script>
 const menu = [
   {id:1,cat:'Meals',name:'South Indian Meals',price:80,time:'8 min',stock:'In Stock',qty:35,emoji:'🍛'},
@@ -764,7 +792,7 @@ function renderAdmin(){
    const cls=q===0?'text-red-600':q<=10?'text-amber-600':'text-emerald-600';
    return `<tr class="admin-menu-row border-b last:border-0">
      <td class="py-3"><div class="flex items-center gap-2"><span class="text-2xl">${x.emoji}</span><div><b>${x.name}</b><p class="text-xs text-slate-500">🏪 ${String(x.shopName||'Main Canteen').replace(/[<>&"']/g,'')}</p></div></div></td>
-     <td>${x.cat}</td><td>₹${x.price}</td>
+     <td>${x.cat}</td><td>${adminPriceText(x)}</td>
      <td><input data-stock="${x.id}" type="number" min="0" value="${q}" class="w-20 border rounded-lg px-2 py-1"></td>
      <td><span class="stock-state ${cls} font-bold">${status}</span></td>
      <td class="flex gap-1"><button onclick="editFood(${inlineArg(x.id)})" class="px-3 py-1.5 rounded-lg bg-slate-100 font-bold">Edit</button><button onclick="removeFood(${inlineArg(x.id)})" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold">Remove</button></td>
@@ -789,6 +817,7 @@ function editFood(id){
  document.getElementById('foodModalTitle').textContent='Edit Food';
  document.getElementById('foodName').value=x.name; document.getElementById('foodCat').value=x.cat;
  document.getElementById('foodPrice').value=x.price; document.getElementById('foodStock').value=x.qty||0; document.getElementById('foodTime').value=x.time||'5 min';
+ document.getElementById('foodSalePct').value=Number(x.salePct)>0?x.salePct:''; document.getElementById('foodSaleUntil').value=Number(x.salePct)>0?saleInputValue(x.saleUntil):'';
  refreshFoodShopOptions(x.shopId);
  document.getElementById('foodShopField').classList.toggle('hidden',currentRole!=='admin');
  selectedFoodImage=x.image||'';
@@ -835,7 +864,7 @@ function add(id){
    return false;
  }
  if(cartItem)cartItem.qty++;
- else cart.push({...food,shopId:foodShopId,shopName:food.shopName||'Main Canteen',qty:1});
+ else cart.push({...food,price:effPrice(food),origPrice:Number(food.price)||0,shopId:foodShopId,shopName:food.shopName||'Main Canteen',qty:1});
  renderCart();
  renderMenu();
  showToast(food.name+' added to cart');
@@ -863,6 +892,8 @@ function updatePickupUI(){
  const lbl=document.getElementById('parcelFeeLabel'); if(lbl) lbl.textContent='Extra ₹'+Math.max(0,Number(parcelFee)||0);
 }
 function renderCart(){
+ cart.forEach(x=>{const f=menu.find(m=>String(m.id)===String(x.id));if(f){x.price=effPrice(f);x.origPrice=Number(f.price)||0;}});
+ const saved=cart.reduce((a,x)=>a+Math.max(0,(x.origPrice||x.price)-x.price)*x.qty,0);
  const count=cart.reduce((a,b)=>a+b.qty,0), sub=cart.reduce((a,b)=>a+b.price*b.qty,0);
  const fee=getCurrentExtraFee(); const disc=(window.CBMaster&&CBMaster.discountFor)?CBMaster.discountFor(sub):0; const total=Math.max(0,sub+fee-disc);
  const badge=document.getElementById('cartCount');
@@ -872,7 +903,7 @@ function renderCart(){
      replayAnimation(badge,'cart-badge-pop');
    }
  }
- document.getElementById('cartItems').innerHTML=cart.map(x=>`<div class="flex gap-3 items-center border rounded-2xl p-3"><div class="w-12 h-12 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji}</div><div class="flex-1"><b>${x.name}</b><p class="text-sm text-slate-500">₹${x.price} each</p></div><div class="flex items-center gap-2"><button onclick="change(${inlineArg(x.id)},-1)" class="w-7 h-7 rounded-lg bg-slate-100">−</button><b>${x.qty}</b><button onclick="change(${inlineArg(x.id)},1)" class="w-7 h-7 rounded-lg bg-slate-100">+</button></div></div>`).join('');
+ document.getElementById('cartItems').innerHTML=cart.map(x=>`<div class="flex gap-3 items-center border rounded-2xl p-3"><div class="w-12 h-12 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji}</div><div class="flex-1"><b>${x.name}</b><p class="text-sm text-slate-500">${x.origPrice>x.price?`<span class="line-through text-slate-400">₹${x.origPrice}</span> <b class="text-red-600">₹${x.price}</b> each · 🔥 clearance`:`₹${x.price} each`}</p></div><div class="flex items-center gap-2"><button onclick="change(${inlineArg(x.id)},-1)" class="w-7 h-7 rounded-lg bg-slate-100">−</button><b>${x.qty}</b><button onclick="change(${inlineArg(x.id)},1)" class="w-7 h-7 rounded-lg bg-slate-100">+</button></div></div>`).join('')+(saved>0?`<p class="text-xs font-black text-emerald-600 text-center">🔥 You save ₹${saved} with clearance prices</p>`:'');
  document.getElementById('cartEmpty').classList.toggle('hidden',count>0);
  document.getElementById('checkoutArea').classList.toggle('hidden',count===0);
  document.getElementById('subtotal').textContent='₹'+sub;
@@ -1633,7 +1664,7 @@ function renderOwner(){
  document.getElementById('ownerMenu').innerHTML=shopMenu.map(x=>`<div class="management-card border rounded-xl p-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
    <div class="flex items-center gap-3 min-w-0">
      ${x.image?`<img src="${x.image}" class="w-14 h-14 rounded-xl object-cover">`:`<span class="w-14 h-14 rounded-xl bg-orange-50 grid place-items-center text-2xl">${x.emoji||'🍽️'}</span>`}
-     <div><b>${x.name}</b><p class="text-xs text-slate-500">${x.cat} • ₹${x.price} • ${x.time||'5 min'}</p></div>
+     <div><b>${x.name}</b><p class="text-xs text-slate-500">${x.cat} • ${adminPriceText(x)} • ${x.time||'5 min'}</p></div>
    </div>
    <div class="flex flex-wrap items-center gap-2">
      <span class="text-xs font-bold text-slate-500">Qty</span>
@@ -2022,11 +2053,11 @@ function renderMenu(filter){
  const list=menu.filter(x=>
   x.active!==false&&
   (selectedCanteen==='All'||canteenKey(x)===selectedCanteen)&&
-  (currentCat==='All'||(currentCat==='Favorites'?favs.has(x.id):x.cat===currentCat))&&
+  (currentCat==='All'||(currentCat==='Favorites'?favs.has(x.id):currentCat==='Clearance'?saleOn(x):x.cat===currentCat))&&
   (!q||String(x.name||'').toLowerCase().includes(q)||canteenKey(x).toLowerCase().includes(q))
  );
- if(sort==='low')list.sort((a,b)=>a.price-b.price);
- else if(sort==='high')list.sort((a,b)=>b.price-a.price);
+ if(sort==='low')list.sort((a,b)=>effPrice(a)-effPrice(b));
+ else if(sort==='high')list.sort((a,b)=>effPrice(b)-effPrice(a));
  else if(sort==='rate')list.sort((a,b)=>rating(b)-rating(a));
  else if(sort==='most_bought')list.sort((a,b)=>boughtCount(b)-boughtCount(a)||rating(b)-rating(a));
  el.innerHTML=list.length?list.map(x=>{
@@ -2036,8 +2067,8 @@ function renderMenu(filter){
   const st=q_<=0?'Out of Stock':q_<=10?'Low Stock':'In Stock';
   const sc=q_<=0?'text-red-600':q_<=10?'text-amber-600':'text-emerald-600';
   const idArg=inlineArg(x.id);
-  return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><div class="min-w-0"><h4 class="font-black">${escapeHtml(x.name)}</h4><p class="text-[11px] lowercase tracking-wide text-slate-400 font-semibold mt-0.5">${escapeHtml(canteenKey(x).toLowerCase())}</p></div><b class="text-orange-600 whitespace-nowrap">₹${x.price}</b></div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${escapeHtml(x.time||'5 min')}${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
- }).join(''):'<p class="col-span-full text-center text-slate-400 py-10">No dishes found.</p>';
+  return `<article class="food-card bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition"><div class="relative">${renderFoodImage(x)}${saleBadge(x)}<button onclick="toggleFav(${idArg})" aria-label="Favourite" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 shadow text-lg ${favs.has(x.id)?'text-red-500':'text-slate-300'}">♥</button></div><div class="pt-3"><div class="flex justify-between gap-2"><div class="min-w-0"><h4 class="font-black">${escapeHtml(x.name)}</h4><p class="text-[11px] lowercase tracking-wide text-slate-400 font-semibold mt-0.5">${escapeHtml(canteenKey(x).toLowerCase())}</p></div>${priceBlock(x)}</div><div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">${icon('clock')} ${escapeHtml(x.time||'5 min')}${r?`<span class="font-bold text-amber-500">★ ${r.avg.toFixed(1)} (${r.n})</span>`:''}<span class="${sc} font-bold">● ${st} (${q_})</span></div>${q_<=0?'<button disabled class="w-full mt-3 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-sm cursor-not-allowed">Out of Stock</button>':c?`<div class="mt-3 flex items-center justify-between rounded-xl bg-orange-500 text-white font-black"><button onclick="change(${idArg},-1)" class="px-5 py-2.5">−</button><span>${c.qty}</span><button onclick="add(${idArg})" class="px-5 py-2.5">+</button></div>`:`<button onclick="add(${idArg})" class="w-full mt-3 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-orange-500 font-bold text-sm transition">Add to Cart</button>`}</div></article>`;
+ }).join(''):'<p class="col-span-full text-center text-slate-400 py-10">'+(currentCat==='Clearance'?'No clearance deals right now. Check back soon! 🔥':'No dishes found.')+'</p>';
  lucide.createIcons();
 }
 $('menuSearch').oninput=()=>renderMenu();$('menuSort').onchange=()=>renderMenu();
@@ -2994,6 +3025,11 @@ showClosedNote();
     const qty = Math.max(0, Number(document.getElementById('foodStock').value || 0));
     const time = document.getElementById('foodTime').value.trim() || '5 min';
     const category = document.getElementById('foodCat').value || 'Meals';
+    const salePct = Math.round(Number(document.getElementById('foodSalePct')?.value || 0));
+    if(salePct < 0 || salePct > 90){ alert('Clearance discount must be between 1 and 90 %. Leave it empty for no sale.'); return; }
+    const saleUntilRaw = document.getElementById('foodSaleUntil')?.value || '';
+    const saleUntil = salePct > 0 && saleUntilRaw ? new Date(saleUntilRaw).getTime() : 0;
+    if(salePct > 0 && saleUntilRaw && (!saleUntil || saleUntil <= Date.now())){ alert('The clearance end time must be in the future.'); return; }
     if(!name || !price){
       alert('Please enter food name and price.');
       return;
@@ -3033,6 +3069,8 @@ showClosedNote();
       qty,
       prepTime: time,
       time,
+      salePct: salePct || 0,
+      saleUntil: saleUntil || 0,
       image: selectedFoodImage || '',
       emoji: '🍽️',
       ownerId: (keepExistingOwner&&existing.ownerId) || shopOwner?.uid || shopOwner?.username || (currentUser?.shopId===targetShop.id?currentUser.uid:'') || auth.currentUser?.uid || '',
@@ -3146,7 +3184,7 @@ showClosedNote();
       const paymentValue = paymentRadio ? paymentRadio.value : 'wallet';
       const paymentMethod = paymentValue === 'upi' ? 'UPI / Net Banking' : 'Campus Wallet';
       const pickupType = getPickupType();
-      const subtotal = orderItems.reduce((sum, entry) => sum + Number(entry.food.price || 0) * entry.quantity, 0);
+      const subtotal = orderItems.reduce((sum, entry) => sum + effPrice(entry.food) * entry.quantity, 0);
       const expressFee = pickupType === 'dine' ? 2 : 0;
       const parcelFeeValue = pickupType === 'parcel' ? Math.max(0, Number(parcelFee) || 0) : 0;
       const couponInfo = window.CBMaster ? CBMaster.consume(subtotal) : { discount: 0, code: '' };
@@ -3181,13 +3219,15 @@ showClosedNote();
         items: orderItems.map(({ food, quantity }) => ({
           foodId: String(food.id),
           name: food.name,
-          price: Number(food.price || 0),
+          price: effPrice(food),
+          originalPrice: Number(food.price || 0),
           quantity,
           ownerId: food.ownerId || ownerId,
           shopId: food.shopId || shopId,
           shopName: food.shopName || DEFAULT_SHOP.name
         })),
         subtotal,
+        clearanceSaving: orderItems.reduce((sum, entry) => sum + Math.max(0, Number(entry.food.price || 0) - effPrice(entry.food)) * entry.quantity, 0),
         expressFee,
         parcelFee: parcelFeeValue,
         discount: couponInfo.discount,

@@ -30,6 +30,8 @@
   /* ---------------- knowledge from the live page ---------------- */
   function foods() { return arr('menu').filter(function (m) { return m && m.name; }); }
   function inStock(m) { return Number(m.qty || 0) > 0; }
+  function pr(m) { try { return typeof effPrice === 'function' ? effPrice(m) : Number(m.price); } catch (e) { return Number(m.price); } }   // clearance-aware price
+  function onSale(m) { try { return typeof saleOn === 'function' && saleOn(m); } catch (e) { return false; } }
   function findFood(q) {
     var best = null, bestScore = 0;
     foods().forEach(function (m) {
@@ -40,7 +42,7 @@
     });
     return bestScore >= 3 ? best : null;
   }
-  function foodLine(m) { return esc(m.name) + ' — ' + rs(m.price) + (inStock(m) ? '' : ' (sold out)') + (m.shopName && foods().some(function (x) { return x.shopName && x.shopName !== m.shopName; }) ? ' • ' + esc(m.shopName) : ''); }
+  function foodLine(m) { return esc(m.name) + ' — ' + rs(pr(m)) + (onSale(m) ? ' 🔥 ' + Number(m.salePct) + '% off (was ' + rs(m.price) + ')' : '') + (inStock(m) ? '' : ' (sold out)') + (m.shopName && foods().some(function (x) { return x.shopName && x.shopName !== m.shopName; }) ? ' • ' + esc(m.shopName) : ''); }
 
   function timings() {
     try {
@@ -60,7 +62,7 @@
   }
 
   /* ---------------- intents ---------------- */
-  var CHIPS = ['What is on the menu?', 'Cheapest item', 'Is the canteen open?', 'Where is my order?', 'My wallet balance', 'My rewards'];
+  var CHIPS = ['What is on the menu?', 'Clearance deals', 'Cheapest item', 'Is the canteen open?', 'Where is my order?', 'My wallet balance', 'My rewards'];
 
   function answer(raw, asRole) {
     var q = norm(raw), r = role();
@@ -107,10 +109,15 @@
 
     if (has(q, ['open', 'close', 'closed', 'timing', 'timings', 'time', 'hours', 'when'])) return { html: timings() };
 
+    if (has(q, ['clearance', 'sale', 'deal', 'deals', 'offer today', 'discounted']) && !has(q, ['milestone'])) {
+      var cl = foods().filter(function (m) { return inStock(m) && onSale(m); });
+      if (!cl.length) return { html: 'There are no clearance deals right now. Check back soon! 🔥' };
+      return { html: 'Clearance deals 🔥<br>' + cl.slice(0, 8).map(function (m) { return '• ' + foodLine(m); }).join('<br>') };
+    }
     if (has(q, ['cheapest', 'lowest price', 'budget', 'cheap', 'under'])) {
       var cap = (raw.match(/(\d{2,4})/) || [])[1];
-      var list = foods().filter(inStock).sort(function (a, b) { return a.price - b.price; });
-      if (cap) list = list.filter(function (m) { return Number(m.price) <= Number(cap); });
+      var list = foods().filter(inStock).sort(function (a, b) { return pr(a) - pr(b); });
+      if (cap) list = list.filter(function (m) { return pr(m) <= Number(cap); });
       if (!list.length) return { html: cap ? 'I could not find in-stock items under ' + rs(cap) + '.' : 'Nothing is in stock right now.' };
       return { html: (cap ? 'In stock under ' + rs(cap) + ':' : 'Cheapest items right now:') + '<br>' + list.slice(0, 5).map(function (m) { return '• ' + foodLine(m); }).join('<br>') };
     }
@@ -123,7 +130,7 @@
 
     var f = findFood(q);
     if (f && !has(q, ['menu', 'all items', 'everything']))
-      return { html: '<b>' + esc(f.name) + '</b> costs <b>' + rs(f.price) + '</b>' + (inStock(f) ? ' and is <b>in stock</b>' + (Number(f.qty) <= 10 ? ' (only ' + Number(f.qty) + ' left!)' : '') + '.' : ' but is <b>sold out</b> right now.') + (f.shopName ? '<br>Canteen: ' + esc(f.shopName) : '') };
+      return { html: '<b>' + esc(f.name) + '</b> costs <b>' + rs(pr(f)) + '</b>' + (onSale(f) ? ' 🔥 (clearance, was ' + rs(f.price) + ')' : '') + (inStock(f) ? ' and is <b>in stock</b>' + (Number(f.qty) <= 10 ? ' (only ' + Number(f.qty) + ' left!)' : '') + '.' : ' but is <b>sold out</b> right now.') + (f.shopName ? '<br>Canteen: ' + esc(f.shopName) : '') };
 
     if (has(q, ['menu', 'food', 'eat', 'available', 'items', 'snacks', 'drinks', 'lunch', 'breakfast', 'what do you have', 'what do you sell'])) {
       var av = foods().filter(inStock);
@@ -144,7 +151,7 @@
 
   function aiContext() {
     var parts = [];
-    var f = foods().slice(0, 60).map(function (m) { return m.name + ' ' + rs(m.price) + (inStock(m) ? ' in stock' : ' sold out') + (m.shopName ? ' (' + m.shopName + ')' : ''); });
+    var f = foods().slice(0, 60).map(function (m) { return m.name + ' ' + rs(pr(m)) + (onSale(m) ? ' CLEARANCE ' + Number(m.salePct) + '% off' : '') + (inStock(m) ? ' in stock' : ' sold out') + (m.shopName ? ' (' + m.shopName + ')' : ''); });
     if (f.length) parts.push('MENU: ' + f.join('; '));
     try { parts.push('TIMINGS: ' + timings().replace(/<br>/g, ' ').replace(/<[^>]+>/g, '')); } catch (e) {}
     if (role() === 'student') {
