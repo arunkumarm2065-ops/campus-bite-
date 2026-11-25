@@ -2189,6 +2189,9 @@ showClosedNote();
   if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
 
   const fbAuth=firebase.auth();
+  // Keep each browser TAB signed in on its own. Without this, logging in as another account in a second tab
+  // switches every other open tab to that account (wrong name, wrong permissions).
+  try{fbAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e=>console.warn('Tab login isolation failed:',e));}catch(e){console.warn(e);}
   const fbDb=firebase.firestore();
   const stateRef=fbDb.collection('campusbite').doc('state');
   const userRef=uid=>fbDb.collection('users').doc(uid);
