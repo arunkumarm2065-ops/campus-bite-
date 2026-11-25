@@ -39,7 +39,8 @@
 
   /* ---------- data ---------- */
   function info() {
-    var d = P.doc || {}, c = cu(), u = me();
+    var u = me(), c = cu();
+    var d = (P.doc && u && P.uid === u.uid) ? P.doc : {};   // never show another account's saved profile
     var email = (u && u.email) || d.email || c.email || '';
     return {
       name: d.name || c.name || c.username || 'User',
@@ -326,6 +327,7 @@
     var r = role(), signedIn = !!r && $('loginView') && $('loginView').classList.contains('hidden');
     if (btn) { btn.classList.toggle('hidden', !signedIn); btn.classList.toggle('inline-flex', !!signedIn); }
     if (!signedIn) { if (isOpen) closePanel(); if (P.uid) P = { doc: null, uid: '', stats: null, view: 'main', avatarDraft: null }; return; }
+    var cur = me(); if (cur && P.uid && P.uid !== cur.uid) { if (isOpen) closePanel(); P = { doc: null, uid: '', stats: null, view: 'main', avatarDraft: null }; }
     loadDoc(); paintBtn();
   }
   function boot() {
